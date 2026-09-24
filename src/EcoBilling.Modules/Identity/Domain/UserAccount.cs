@@ -1,0 +1,63 @@
+using EcoBilling.SharedKernel.Results;
+
+namespace EcoBilling.Modules.Identity.Domain;
+
+public sealed class UserAccount
+{
+    private UserAccount(
+        UserId id,
+        LoginIdentity loginIdentity,
+        string passwordHash,
+        UserRole role,
+        DateTimeOffset createdAt)
+    {
+        Id = id;
+        LoginIdentity = loginIdentity;
+        PasswordHash = passwordHash;
+        Role = role;
+        CreatedAt = createdAt;
+    }
+
+    public UserId Id { get; }
+
+    public LoginIdentity LoginIdentity { get; }
+
+    public string PasswordHash { get; }
+
+    public UserRole Role { get; }
+
+    public DateTimeOffset CreatedAt { get; }
+
+    public static Result<UserAccount> Create(
+        UserId id,
+        LoginIdentity? loginIdentity,
+        string? passwordHash,
+        UserRole role,
+        DateTimeOffset createdAt)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+
+        if (!Enum.IsDefined(role))
+        {
+            return Result<UserAccount>.Failure(IdentityErrors.InvalidRole);
+        }
+
+        if (loginIdentity is null)
+        {
+            return Result<UserAccount>.Failure(IdentityErrors.InvalidLogin);
+        }
+
+        if (!loginIdentity.IsCompatibleWith(role))
+        {
+            return Result<UserAccount>.Failure(IdentityErrors.InvalidRole);
+        }
+
+        if (string.IsNullOrWhiteSpace(passwordHash))
+        {
+            return Result<UserAccount>.Failure(IdentityErrors.InvalidPasswordHash);
+        }
+
+        return Result<UserAccount>.Success(
+            new UserAccount(id, loginIdentity, passwordHash, role, createdAt));
+    }
+}

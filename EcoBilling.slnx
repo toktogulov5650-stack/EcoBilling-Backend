@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EcoBilling.Api/EcoBilling.Api.csproj" Id="e4de888b-3118-4db8-bf39-a681480c1d0f" />
+    <Project Path="src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj" Id="24e7848a-0121-4df6-a354-fa90cb828f95" />
+    <Project Path="src/EcoBilling.Modules/EcoBilling.Modules.csproj" Id="12f20071-d4a7-48d3-9471-e1e56c49bbc7" />
+    <Project Path="src/EcoBilling.SharedKernel/EcoBilling.SharedKernel.csproj" Id="6087d1cb-a426-4fac-aa95-553b983350e5" />
+    <Project Path="src/EcoBilling.Worker/EcoBilling.Worker.csproj" Id="9790c3f6-cc4e-4178-a964-5107ac9820d4" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EcoBilling.ArchitectureTests/EcoBilling.ArchitectureTests.csproj" Id="006ed597-73cb-4967-a55b-8e04bd5e9071" />
+    <Project Path="tests/EcoBilling.EndToEndTests/EcoBilling.EndToEndTests.csproj" Id="9874a418-58f1-4379-bfb2-a28d7efae15a" />
+    <Project Path="tests/EcoBilling.IntegrationTests/EcoBilling.IntegrationTests.csproj" Id="67699cc5-8770-465b-8c05-d71b9ea0ff0f" />
+    <Project Path="tests/EcoBilling.UnitTests/EcoBilling.UnitTests.csproj" Id="8079e73e-42a8-4116-a538-fbb223eb29e9" />
+  </Folder>
+</Solution>

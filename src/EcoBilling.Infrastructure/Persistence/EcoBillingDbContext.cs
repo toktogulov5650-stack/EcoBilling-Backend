@@ -1,6 +1,7 @@
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Controllers.Domain;
 using EcoBilling.Modules.Identity.Domain;
+using EcoBilling.Modules.Meters.Domain;
 using EcoBilling.Modules.Residents.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,8 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
     public DbSet<Account> Accounts => Set<Account>();
 
     public DbSet<Address> Addresses => Set<Address>();
+
+    public DbSet<Meter> Meters => Set<Meter>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

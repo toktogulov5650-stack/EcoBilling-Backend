@@ -17,6 +17,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\EcoBilling.Modules\EcoBilling.Modules.csproj" />
     <ProjectReference Include="..\..\src\EcoBilling.SharedKernel\EcoBilling.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\EcoBilling.Worker\EcoBilling.Worker.csproj" />
   </ItemGroup>
 
   <ItemGroup>

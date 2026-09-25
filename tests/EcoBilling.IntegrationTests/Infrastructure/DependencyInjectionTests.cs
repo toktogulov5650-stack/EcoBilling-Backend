@@ -1,6 +1,7 @@
 using EcoBilling.Infrastructure;
 using EcoBilling.Infrastructure.Authentication;
 using EcoBilling.Infrastructure.Persistence;
+using EcoBilling.Infrastructure.Persistence.Reports;
 using EcoBilling.Infrastructure.Persistence.Repositories;
 using EcoBilling.Modules.Accounts.Features.Abstractions;
 using EcoBilling.Modules.Billing.Features.Abstractions;
@@ -10,6 +11,7 @@ using EcoBilling.Modules.Meters.Features.Abstractions;
 using EcoBilling.Modules.Payments.Features.Abstractions;
 using EcoBilling.Modules.Readings.Features.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
+using EcoBilling.Modules.Reports.Features.Abstractions;
 using EcoBilling.Modules.Tariffs.Features.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -50,6 +52,8 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IChargeRepository>());
         Assert.IsType<PaymentRepository>(
             scope.ServiceProvider.GetRequiredService<IPaymentRepository>());
+        Assert.IsType<DistrictOperationalSummaryReader>(
+            scope.ServiceProvider.GetRequiredService<IDistrictOperationalSummaryReader>());
         Assert.IsType<PasswordHasherAdapter>(
             scope.ServiceProvider.GetRequiredService<IPasswordHasher>());
     }

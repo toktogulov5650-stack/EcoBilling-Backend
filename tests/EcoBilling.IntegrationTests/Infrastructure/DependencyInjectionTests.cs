@@ -2,6 +2,8 @@ using EcoBilling.Infrastructure;
 using EcoBilling.Infrastructure.Authentication;
 using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.Infrastructure.Persistence.Repositories;
+using EcoBilling.Modules.Accounts.Features.Abstractions;
+using EcoBilling.Modules.Controllers.Features.Abstractions;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,12 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IUserAccountRepository>());
         Assert.IsType<ResidentRepository>(
             scope.ServiceProvider.GetRequiredService<IResidentRepository>());
+        Assert.IsType<ControllerRepository>(
+            scope.ServiceProvider.GetRequiredService<IControllerRepository>());
+        Assert.IsType<AccountRepository>(
+            scope.ServiceProvider.GetRequiredService<IAccountRepository>());
+        Assert.IsType<AddressRepository>(
+            scope.ServiceProvider.GetRequiredService<IAddressRepository>());
         Assert.IsType<PasswordHasherAdapter>(
             scope.ServiceProvider.GetRequiredService<IPasswordHasher>());
     }

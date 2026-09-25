@@ -1,3 +1,5 @@
+using EcoBilling.Modules.Accounts.Domain;
+using EcoBilling.Modules.Controllers.Domain;
 using EcoBilling.Modules.Identity.Domain;
 using EcoBilling.Modules.Residents.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +12,12 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
 
     public DbSet<Resident> Residents => Set<Resident>();
+
+    public DbSet<Controller> Controllers => Set<Controller>();
+
+    public DbSet<Account> Accounts => Set<Account>();
+
+    public DbSet<Address> Addresses => Set<Address>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -3,6 +3,7 @@ using System;
 using EcoBilling.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcoBilling.Infrastructure.Migrations
 {
     [DbContext(typeof(EcoBillingDbContext))]
-    partial class EcoBillingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925062058_AddAccounts")]
+    partial class AddAccounts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,10 +30,6 @@ namespace EcoBilling.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<Guid>("AddressId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("address_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -48,9 +47,6 @@ namespace EcoBilling.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_accounts");
 
-                    b.HasIndex("AddressId")
-                        .HasDatabaseName("ix_accounts_address_id");
-
                     b.HasIndex("Number")
                         .IsUnique()
                         .HasDatabaseName("ux_accounts_account_number");
@@ -59,49 +55,6 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasDatabaseName("ix_accounts_resident_id");
 
                     b.ToTable("accounts", "accounts");
-                });
-
-            modelBuilder.Entity("EcoBilling.Modules.Accounts.Domain.Address", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Apartment")
-                        .HasColumnType("text")
-                        .HasColumnName("apartment");
-
-                    b.Property<string>("Building")
-                        .HasColumnType("text")
-                        .HasColumnName("building");
-
-                    b.Property<string>("House")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("house");
-
-                    b.Property<string>("Locality")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("locality");
-
-                    b.Property<string>("SearchText")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("search_text");
-
-                    b.Property<string>("Street")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("street");
-
-                    b.HasKey("Id")
-                        .HasName("pk_addresses");
-
-                    b.HasIndex("SearchText")
-                        .HasDatabaseName("ix_addresses_search_text");
-
-                    b.ToTable("addresses", "accounts");
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Controllers.Domain.Controller", b =>
@@ -194,13 +147,6 @@ namespace EcoBilling.Infrastructure.Migrations
 
             modelBuilder.Entity("EcoBilling.Modules.Accounts.Domain.Account", b =>
                 {
-                    b.HasOne("EcoBilling.Modules.Accounts.Domain.Address", null)
-                        .WithMany()
-                        .HasForeignKey("AddressId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_accounts_addresses_address_id");
-
                     b.HasOne("EcoBilling.Modules.Residents.Domain.Resident", null)
                         .WithMany()
                         .HasForeignKey("ResidentId")

@@ -1,6 +1,8 @@
 using EcoBilling.Infrastructure.Authentication;
 using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.Infrastructure.Persistence.Repositories;
+using EcoBilling.Modules.Accounts.Features.Abstractions;
+using EcoBilling.Modules.Controllers.Features.Abstractions;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
@@ -23,6 +25,9 @@ public static class DependencyInjection
                 .EnableSensitiveDataLogging(false));
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
         services.AddScoped<IResidentRepository, ResidentRepository>();
+        services.AddScoped<IControllerRepository, ControllerRepository>();
+        services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
 
         return services;

@@ -43,6 +43,34 @@ Rollback первой миграции удаляет таблицу и созд
 
 Rollback миграции удаляет таблицу и schema `residents`, не затрагивая Identity.
 
+## Controllers
+
+Миграция `AddControllersProfile` создаёт schema `controllers` и таблицу `controllers.controllers`:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| `id` | `uuid` | primary key |
+| `user_id` | `uuid` | NOT NULL, unique, FK на `identity.user_accounts.id` с `RESTRICT` |
+| `full_name` | `text` | NOT NULL |
+| `created_at` | `timestamp with time zone` | NOT NULL, UTC |
+
+Rollback миграции удаляет таблицу и schema `controllers`, не затрагивая Identity или Residents.
+
+## Accounts
+
+Миграция `AddAccounts` создаёт schema `accounts` и таблицу `accounts.accounts`:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| `id` | `uuid` | primary key |
+| `resident_id` | `uuid` | NOT NULL, FK на `residents.residents.id` с `RESTRICT` |
+| `account_number` | `text` | NOT NULL, unique, хранится в канонической форме |
+| `created_at` | `timestamp with time zone` | NOT NULL, UTC |
+
+Неуникальный индекс `ix_accounts_resident_id` поддерживает поиск счетов Resident, не фиксируя пока неподтверждённую кардинальность. Поля Balance, долга, переплаты и Address отсутствуют до утверждения соответствующих правил.
+
+Rollback миграции удаляет таблицу и schema `accounts`, не затрагивая Identity, Residents или Controllers.
+
 ## Интеграционные тесты
 
 Тесты требуют настоящую PostgreSQL и роль с правами `CREATE DATABASE`. Каждый тест создаёт отдельную базу `ecobilling_test_<guid>` и удаляет её после выполнения.

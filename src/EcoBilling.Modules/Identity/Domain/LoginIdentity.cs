@@ -10,28 +10,20 @@ public sealed record LoginIdentity
         NormalizedValue = normalizedValue;
     }
 
-    public LoginType Type { get; }
-
-    public string NormalizedValue { get; }
-
-    public static Result<LoginIdentity> Create(
-        UserRole role,
-        LoginType type,
-        string? value)
+    private LoginIdentity()
     {
-        if (!Enum.IsDefined(role))
-        {
-            return Result<LoginIdentity>.Failure(IdentityErrors.InvalidRole);
-        }
+        NormalizedValue = string.Empty;
+    }
 
+    public LoginType Type { get; private set; }
+
+    public string NormalizedValue { get; private set; }
+
+    public static Result<LoginIdentity> Create(LoginType type, string? value)
+    {
         if (!Enum.IsDefined(type))
         {
             return Result<LoginIdentity>.Failure(IdentityErrors.InvalidLogin);
-        }
-
-        if (!IsCompatible(role, type))
-        {
-            return Result<LoginIdentity>.Failure(IdentityErrors.InvalidRole);
         }
 
         var normalizedValue = Normalize(type, value);
@@ -64,7 +56,7 @@ public sealed record LoginIdentity
             return Result<string>.Success(trimmedValue.ToUpperInvariant());
         }
 
-        return Result<string>.Success(trimmedValue);
+        return Result<string>.Success(trimmedValue.ToUpperInvariant());
     }
 
     public bool IsCompatibleWith(UserRole role) => IsCompatible(role, Type);

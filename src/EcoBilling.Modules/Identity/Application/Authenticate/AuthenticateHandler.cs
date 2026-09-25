@@ -41,13 +41,20 @@ public sealed class AuthenticateHandler
             return Result<AuthenticationResult>.Failure(normalizedLogin.Error);
         }
 
-        var userAccount = await userAccountRepository.FindByLoginAsync(
-            command.LoginType,
+        var userAccount = await userAccountRepository.GetByLoginAsync(
             normalizedLogin.Value,
             cancellationToken);
 
-        if (userAccount is null ||
-            !passwordHasher.Verify(command.Password, userAccount.PasswordHash))
+        if (userAccount is null)
+        {
+            return Result<AuthenticationResult>.Failure(IdentityErrors.InvalidCredentials);
+        }
+
+        var verificationOutcome = passwordHasher.Verify(
+            command.Password,
+            userAccount.PasswordHash);
+
+        if (verificationOutcome is PasswordVerificationOutcome.Failed)
         {
             return Result<AuthenticationResult>.Failure(IdentityErrors.InvalidCredentials);
         }

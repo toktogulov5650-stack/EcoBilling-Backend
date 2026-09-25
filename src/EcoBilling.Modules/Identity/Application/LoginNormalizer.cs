@@ -6,6 +6,6 @@ namespace EcoBilling.Modules.Identity.Application;
 
 public sealed class LoginNormalizer : ILoginNormalizer
 {
-    public Result<string> Normalize(LoginType loginType, string? login) =>
-        LoginIdentity.Normalize(loginType, login);
+    public Result<LoginIdentity> Normalize(LoginType loginType, string? login) =>
+        LoginIdentity.Create(loginType, login);
 }

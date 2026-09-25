@@ -62,6 +62,24 @@ public sealed class AuthenticateHandlerTests
     }
 
     [Fact]
+    public async Task Handle_AcceptsPasswordThatNeedsRehashWithoutChangingStoredHash()
+    {
+        var account = CreateAccount(UserRole.Controller, LoginType.Email, "user@example.com");
+        var repository = new RecordingUserAccountRepository(account);
+        var handler = new AuthenticateHandler(
+            repository,
+            new ConfigurablePasswordHasher(PasswordVerificationOutcome.SuccessRehashNeeded),
+            new LoginNormalizer());
+
+        var result = await handler.Handle(
+            new AuthenticateCommand(LoginType.Email, "user@example.com", ValidPassword),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(StoredHash, account.PasswordHash);
+    }
+
+    [Fact]
     public async Task Handle_HidesWhetherAccountExists()
     {
         var missingUserHandler = CreateHandler(
@@ -97,8 +115,8 @@ public sealed class AuthenticateHandlerTests
             new AuthenticateCommand(LoginType.Email, "  User@Example.com  ", ValidPassword),
             CancellationToken.None);
 
-        Assert.Equal(LoginType.Email, repository.ReceivedLoginType);
-        Assert.Equal("USER@EXAMPLE.COM", repository.ReceivedNormalizedLogin);
+        Assert.Equal(LoginType.Email, repository.ReceivedLoginIdentity?.Type);
+        Assert.Equal("USER@EXAMPLE.COM", repository.ReceivedLoginIdentity?.NormalizedValue);
     }
 
     [Fact]
@@ -198,7 +216,7 @@ public sealed class AuthenticateHandlerTests
         LoginType loginType,
         string login)
     {
-        var loginIdentity = LoginIdentity.Create(role, loginType, login).Value;
+        var loginIdentity = LoginIdentity.Create(loginType, login).Value;
         return UserAccount.Create(
             new UserId(Guid.NewGuid()),
             loginIdentity,
@@ -219,31 +237,43 @@ public sealed class AuthenticateHandlerTests
     {
         public int CallCount { get; private set; }
 
-        public LoginType? ReceivedLoginType { get; private set; }
-
-        public string? ReceivedNormalizedLogin { get; private set; }
+        public LoginIdentity? ReceivedLoginIdentity { get; private set; }
 
         public CancellationToken ReceivedCancellationToken { get; private set; }
 
-        public Task<UserAccount?> FindByLoginAsync(
-            LoginType loginType,
-            string normalizedLogin,
+        public Task<UserAccount?> GetByLoginAsync(
+            LoginIdentity loginIdentity,
             CancellationToken cancellationToken)
         {
             CallCount++;
-            ReceivedLoginType = loginType;
-            ReceivedNormalizedLogin = normalizedLogin;
+            ReceivedLoginIdentity = loginIdentity;
             ReceivedCancellationToken = cancellationToken;
             return Task.FromResult(account);
         }
     }
 
-    private sealed class ConfigurablePasswordHasher(bool passwordMatches) : IPasswordHasher
+    private sealed class ConfigurablePasswordHasher : IPasswordHasher
     {
+        private readonly PasswordVerificationOutcome outcome;
+
+        public ConfigurablePasswordHasher(bool passwordMatches)
+            : this(passwordMatches
+                ? PasswordVerificationOutcome.Success
+                : PasswordVerificationOutcome.Failed)
+        {
+        }
+
+        public ConfigurablePasswordHasher(PasswordVerificationOutcome outcome)
+        {
+            this.outcome = outcome;
+        }
+
         public string Hash(string password) =>
             throw new NotSupportedException("Hashing is not used by authentication tests.");
 
-        public bool Verify(string password, string passwordHash) =>
-            passwordMatches && password == ValidPassword && passwordHash == StoredHash;
+        public PasswordVerificationOutcome Verify(string password, string passwordHash) =>
+            password == ValidPassword && passwordHash == StoredHash
+                ? outcome
+                : PasswordVerificationOutcome.Failed;
     }
 }

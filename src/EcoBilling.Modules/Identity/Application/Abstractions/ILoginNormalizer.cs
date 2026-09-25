@@ -5,5 +5,5 @@ namespace EcoBilling.Modules.Identity.Application.Abstractions;
 
 public interface ILoginNormalizer
 {
-    Result<string> Normalize(LoginType loginType, string? login);
+    Result<LoginIdentity> Normalize(LoginType loginType, string? login);
 }

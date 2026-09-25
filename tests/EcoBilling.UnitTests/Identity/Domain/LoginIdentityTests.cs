@@ -8,7 +8,6 @@ public sealed class LoginIdentityTests
     public void Create_RejectsNullValue()
     {
         var result = LoginIdentity.Create(
-            UserRole.Resident,
             LoginType.AccountNumber,
             null);
 
@@ -21,7 +20,6 @@ public sealed class LoginIdentityTests
     public void Create_RejectsEmptyValue(string value)
     {
         var result = LoginIdentity.Create(
-            UserRole.Resident,
             LoginType.AccountNumber,
             value);
 
@@ -29,22 +27,20 @@ public sealed class LoginIdentityTests
     }
 
     [Fact]
-    public void Create_TrimsAccountNumberWithoutAssumingItsFormat()
+    public void Create_NormalizesAccountNumberWithoutAssumingItsFormat()
     {
         var result = LoginIdentity.Create(
-            UserRole.Resident,
             LoginType.AccountNumber,
             "  Ab-12/34  ");
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("Ab-12/34", result.Value.NormalizedValue);
+        Assert.Equal("AB-12/34", result.Value.NormalizedValue);
     }
 
     [Fact]
     public void Create_NormalizesEmail()
     {
         var result = LoginIdentity.Create(
-            UserRole.Controller,
             LoginType.Email,
             "  Controller@Example.com  ");
 
@@ -61,7 +57,6 @@ public sealed class LoginIdentityTests
     public void Create_RejectsStructurallyInvalidEmail(string email)
     {
         var result = LoginIdentity.Create(
-            UserRole.Controller,
             LoginType.Email,
             email);
 
@@ -71,17 +66,11 @@ public sealed class LoginIdentityTests
     [Fact]
     public void Resident_AcceptsOnlyAccountNumber()
     {
-        var accepted = LoginIdentity.Create(
-            UserRole.Resident,
-            LoginType.AccountNumber,
-            "A-1");
-        var rejected = LoginIdentity.Create(
-            UserRole.Resident,
-            LoginType.Email,
-            "resident@example.com");
+        var accountNumber = LoginIdentity.Create(LoginType.AccountNumber, "A-1").Value;
+        var email = LoginIdentity.Create(LoginType.Email, "resident@example.com").Value;
 
-        Assert.True(accepted.IsSuccess);
-        AssertFailure(rejected, IdentityErrors.InvalidRole.Code);
+        Assert.True(accountNumber.IsCompatibleWith(UserRole.Resident));
+        Assert.False(email.IsCompatibleWith(UserRole.Resident));
     }
 
     [Theory]
@@ -89,33 +78,21 @@ public sealed class LoginIdentityTests
     [InlineData(UserRole.Director)]
     public void Staff_AcceptsOnlyEmail(UserRole role)
     {
-        var accepted = LoginIdentity.Create(role, LoginType.Email, "staff@example.com");
-        var rejected = LoginIdentity.Create(role, LoginType.AccountNumber, "A-1");
+        var email = LoginIdentity.Create(LoginType.Email, "staff@example.com").Value;
+        var accountNumber = LoginIdentity.Create(LoginType.AccountNumber, "A-1").Value;
 
-        Assert.True(accepted.IsSuccess);
-        AssertFailure(rejected, IdentityErrors.InvalidRole.Code);
+        Assert.True(email.IsCompatibleWith(role));
+        Assert.False(accountNumber.IsCompatibleWith(role));
     }
 
     [Fact]
     public void Create_RejectsUnsupportedLoginType()
     {
         var result = LoginIdentity.Create(
-            UserRole.Resident,
             (LoginType)999,
             "value");
 
         AssertFailure(result, IdentityErrors.InvalidLogin.Code);
-    }
-
-    [Fact]
-    public void Create_RejectsUnknownRole()
-    {
-        var result = LoginIdentity.Create(
-            (UserRole)999,
-            LoginType.Email,
-            "user@example.com");
-
-        AssertFailure(result, IdentityErrors.InvalidRole.Code);
     }
 
     private static void AssertFailure<T>(

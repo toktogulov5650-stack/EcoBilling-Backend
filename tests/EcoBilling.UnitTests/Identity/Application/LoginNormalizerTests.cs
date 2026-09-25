@@ -13,15 +13,15 @@ public sealed class LoginNormalizerTests
         var result = normalizer.Normalize(LoginType.Email, " user@example.com ");
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("USER@EXAMPLE.COM", result.Value);
+        Assert.Equal("USER@EXAMPLE.COM", result.Value.NormalizedValue);
     }
 
     [Fact]
-    public void Normalize_DoesNotInventAccountNumberFormat()
+    public void Normalize_UsesCaseInsensitiveAccountNumberWithoutInventingFormat()
     {
         var result = normalizer.Normalize(LoginType.AccountNumber, "  Ab/12-3  ");
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("Ab/12-3", result.Value);
+        Assert.Equal("AB/12-3", result.Value.NormalizedValue);
     }
 }

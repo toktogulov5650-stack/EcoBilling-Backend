@@ -11,7 +11,7 @@ public sealed class UserAccountTests
     public void Create_AcceptsValidData()
     {
         var id = new UserId(Guid.NewGuid());
-        var login = CreateLogin(UserRole.Resident, LoginType.AccountNumber, "A-100");
+        var login = CreateLogin(LoginType.AccountNumber, "A-100");
 
         var result = UserAccount.Create(id, login, "stored-hash", UserRole.Resident, CreatedAt);
 
@@ -20,7 +20,7 @@ public sealed class UserAccountTests
         Assert.Same(login, result.Value.LoginIdentity);
         Assert.Equal("stored-hash", result.Value.PasswordHash);
         Assert.Equal(UserRole.Resident, result.Value.Role);
-        Assert.Equal(CreatedAt, result.Value.CreatedAt);
+        Assert.Equal(CreatedAt.ToUniversalTime(), result.Value.CreatedAt);
     }
 
     [Theory]
@@ -29,7 +29,7 @@ public sealed class UserAccountTests
     [InlineData("   ")]
     public void Create_RejectsEmptyPasswordHash(string? passwordHash)
     {
-        var login = CreateLogin(UserRole.Resident, LoginType.AccountNumber, "A-100");
+        var login = CreateLogin(LoginType.AccountNumber, "A-100");
 
         var result = UserAccount.Create(
             new UserId(Guid.NewGuid()),
@@ -45,10 +45,7 @@ public sealed class UserAccountTests
     [Fact]
     public void Create_RejectsLoginIncompatibleWithRole()
     {
-        var residentLogin = CreateLogin(
-            UserRole.Resident,
-            LoginType.AccountNumber,
-            "A-100");
+        var residentLogin = CreateLogin(LoginType.AccountNumber, "A-100");
 
         var result = UserAccount.Create(
             new UserId(Guid.NewGuid()),
@@ -64,7 +61,7 @@ public sealed class UserAccountTests
     [Fact]
     public void Create_RejectsUnknownRole()
     {
-        var login = CreateLogin(UserRole.Resident, LoginType.AccountNumber, "A-100");
+        var login = CreateLogin(LoginType.AccountNumber, "A-100");
 
         var result = UserAccount.Create(
             new UserId(Guid.NewGuid()),
@@ -97,7 +94,7 @@ public sealed class UserAccountTests
     {
         var account = UserAccount.Create(
             new UserId(Guid.NewGuid()),
-            CreateLogin(UserRole.Resident, LoginType.AccountNumber, "A-100"),
+            CreateLogin(LoginType.AccountNumber, "A-100"),
             "sensitive-stored-hash",
             UserRole.Resident,
             CreatedAt).Value;
@@ -105,8 +102,6 @@ public sealed class UserAccountTests
         Assert.DoesNotContain("sensitive-stored-hash", account.ToString(), StringComparison.Ordinal);
     }
 
-    private static LoginIdentity CreateLogin(
-        UserRole role,
-        LoginType type,
-        string value) => LoginIdentity.Create(role, type, value).Value;
+    private static LoginIdentity CreateLogin(LoginType type, string value) =>
+        LoginIdentity.Create(type, value).Value;
 }

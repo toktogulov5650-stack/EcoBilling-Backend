@@ -4,6 +4,13 @@ namespace EcoBilling.Modules.Identity.Domain;
 
 public sealed class UserAccount
 {
+    private UserAccount()
+    {
+        Id = null!;
+        LoginIdentity = null!;
+        PasswordHash = string.Empty;
+    }
+
     private UserAccount(
         UserId id,
         LoginIdentity loginIdentity,
@@ -18,15 +25,15 @@ public sealed class UserAccount
         CreatedAt = createdAt;
     }
 
-    public UserId Id { get; }
+    public UserId Id { get; private set; }
 
-    public LoginIdentity LoginIdentity { get; }
+    public LoginIdentity LoginIdentity { get; private set; }
 
-    public string PasswordHash { get; }
+    public string PasswordHash { get; private set; }
 
-    public UserRole Role { get; }
+    public UserRole Role { get; private set; }
 
-    public DateTimeOffset CreatedAt { get; }
+    public DateTimeOffset CreatedAt { get; private set; }
 
     public static Result<UserAccount> Create(
         UserId id,
@@ -58,6 +65,6 @@ public sealed class UserAccount
         }
 
         return Result<UserAccount>.Success(
-            new UserAccount(id, loginIdentity, passwordHash, role, createdAt));
+            new UserAccount(id, loginIdentity, passwordHash, role, createdAt.ToUniversalTime()));
     }
 }

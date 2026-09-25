@@ -7,6 +7,7 @@ public sealed class IdentityBoundaryTests
     [Theory]
     [InlineData("Microsoft.AspNetCore")]
     [InlineData("Microsoft.EntityFrameworkCore")]
+    [InlineData("Npgsql")]
     public void ModulesAssembly_DoesNotReferenceForbiddenFramework(string forbiddenPrefix)
     {
         var referencedAssemblies = typeof(UserAccount)

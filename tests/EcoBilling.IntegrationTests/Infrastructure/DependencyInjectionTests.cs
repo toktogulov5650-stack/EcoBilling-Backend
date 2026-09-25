@@ -3,10 +3,13 @@ using EcoBilling.Infrastructure.Authentication;
 using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.Infrastructure.Persistence.Repositories;
 using EcoBilling.Modules.Accounts.Features.Abstractions;
+using EcoBilling.Modules.Billing.Features.Abstractions;
 using EcoBilling.Modules.Controllers.Features.Abstractions;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Meters.Features.Abstractions;
+using EcoBilling.Modules.Readings.Features.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
+using EcoBilling.Modules.Tariffs.Features.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EcoBilling.IntegrationTests.Infrastructure;
@@ -36,6 +39,14 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<IAddressRepository>());
         Assert.IsType<MeterRepository>(
             scope.ServiceProvider.GetRequiredService<IMeterRepository>());
+        Assert.IsType<MeterReadingRepository>(
+            scope.ServiceProvider.GetRequiredService<IMeterReadingRepository>());
+        Assert.IsType<TariffRepository>(
+            scope.ServiceProvider.GetRequiredService<ITariffRepository>());
+        Assert.IsType<TariffVersionRepository>(
+            scope.ServiceProvider.GetRequiredService<ITariffVersionRepository>());
+        Assert.IsType<ChargeRepository>(
+            scope.ServiceProvider.GetRequiredService<IChargeRepository>());
         Assert.IsType<PasswordHasherAdapter>(
             scope.ServiceProvider.GetRequiredService<IPasswordHasher>());
     }

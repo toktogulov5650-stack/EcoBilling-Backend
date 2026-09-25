@@ -3,6 +3,7 @@ using System;
 using EcoBilling.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,16 +12,17 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcoBilling.Infrastructure.Migrations
 {
     [DbContext(typeof(EcoBillingDbContext))]
-    partial class EcoBillingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925113417_AddReadings")]
+    partial class AddReadings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "btree_gist");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("EcoBilling.Modules.Accounts.Domain.Account", b =>
@@ -103,52 +105,6 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasDatabaseName("ix_addresses_search_text");
 
                     b.ToTable("addresses", "accounts");
-                });
-
-            modelBuilder.Entity("EcoBilling.Modules.Billing.Domain.Charge", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("account_id");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("amount");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateOnly>("PeriodEnd")
-                        .HasColumnType("date")
-                        .HasColumnName("period_end");
-
-                    b.Property<DateOnly>("PeriodStart")
-                        .HasColumnType("date")
-                        .HasColumnName("period_start");
-
-                    b.Property<Guid>("TariffVersionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tariff_version_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_charges");
-
-                    b.HasIndex("TariffVersionId")
-                        .HasDatabaseName("ix_charges_tariff_version_id");
-
-                    b.HasIndex("AccountId", "PeriodStart", "PeriodEnd")
-                        .IsUnique()
-                        .HasDatabaseName("ux_charges_account_id_period_start_period_end");
-
-                    b.ToTable("charges", "billing", t =>
-                        {
-                            t.HasCheckConstraint("ck_charges_billing_period", "period_end > period_start");
-                        });
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Controllers.Domain.Controller", b =>
@@ -305,67 +261,6 @@ namespace EcoBilling.Infrastructure.Migrations
                     b.ToTable("residents", "residents");
                 });
 
-            modelBuilder.Entity("EcoBilling.Modules.Tariffs.Domain.Tariff", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("name");
-
-                    b.HasKey("Id")
-                        .HasName("pk_tariffs");
-
-                    b.ToTable("tariffs", "tariffs");
-                });
-
-            modelBuilder.Entity("EcoBilling.Modules.Tariffs.Domain.TariffVersion", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .HasColumnType("date")
-                        .HasColumnName("effective_from");
-
-                    b.Property<DateOnly?>("EffectiveTo")
-                        .HasColumnType("date")
-                        .HasColumnName("effective_to");
-
-                    b.Property<decimal>("Rate")
-                        .HasColumnType("numeric")
-                        .HasColumnName("rate");
-
-                    b.Property<Guid>("TariffId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tariff_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_tariff_versions");
-
-                    b.HasIndex("TariffId", "EffectiveFrom")
-                        .HasDatabaseName("ix_tariff_versions_tariff_id_effective_from");
-
-                    b.ToTable("tariff_versions", "tariffs", t =>
-                        {
-                            t.HasCheckConstraint("ck_tariff_versions_effective_period", "effective_to IS NULL OR effective_to > effective_from");
-
-                            t.HasCheckConstraint("ck_tariff_versions_rate_non_negative", "rate >= 0");
-                        });
-                });
-
             modelBuilder.Entity("EcoBilling.Modules.Accounts.Domain.Account", b =>
                 {
                     b.HasOne("EcoBilling.Modules.Accounts.Domain.Address", null)
@@ -381,23 +276,6 @@ namespace EcoBilling.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_accounts_residents_resident_id");
-                });
-
-            modelBuilder.Entity("EcoBilling.Modules.Billing.Domain.Charge", b =>
-                {
-                    b.HasOne("EcoBilling.Modules.Accounts.Domain.Account", null)
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_charges_accounts_account_id");
-
-                    b.HasOne("EcoBilling.Modules.Tariffs.Domain.TariffVersion", null)
-                        .WithMany()
-                        .HasForeignKey("TariffVersionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_charges_tariff_versions_tariff_version_id");
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Controllers.Domain.Controller", b =>
@@ -470,16 +348,6 @@ namespace EcoBilling.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_residents_user_accounts_user_id");
-                });
-
-            modelBuilder.Entity("EcoBilling.Modules.Tariffs.Domain.TariffVersion", b =>
-                {
-                    b.HasOne("EcoBilling.Modules.Tariffs.Domain.Tariff", null)
-                        .WithMany()
-                        .HasForeignKey("TariffId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_tariff_versions_tariffs_tariff_id");
                 });
 #pragma warning restore 612, 618
         }

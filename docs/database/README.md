@@ -107,6 +107,67 @@ Rollback `AddAddresses` удаляет внешний ключ и `address_id`, 
 
 Rollback миграции удаляет таблицу и schema `meters`, не затрагивая Accounts и Addresses.
 
+## Readings
+
+Миграция `AddReadings` создаёт schema `readings` и таблицу `readings.meter_readings`:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| `id` | `uuid` | primary key |
+| `meter_id` | `uuid` | NOT NULL, FK на `meters.meters.id` с `RESTRICT` |
+| `value` | `numeric` | NOT NULL, значение не меньше нуля |
+| `measured_at` | `timestamp with time zone` | NOT NULL, UTC |
+| `created_at` | `timestamp with time zone` | NOT NULL, UTC |
+
+Неуникальный индекс `ix_meter_readings_meter_id_measured_at` создан по `(meter_id, measured_at)`. Precision и scale для `value`, уникальность времени измерения и проверка монотонности не вводятся до утверждения бизнес-правил.
+
+Сгенерированный rollback дополнен удалением пустой schema `readings`, чтобы откат был симметричен применению миграции. Он не затрагивает Meters.
+
+## Tariffs
+
+Миграция `AddTariffs` создаёт schema `tariffs` и две таблицы.
+
+`tariffs.tariffs`:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| `id` | `uuid` | primary key |
+| `name` | `text` | NOT NULL |
+| `created_at` | `timestamp with time zone` | NOT NULL, UTC |
+
+`tariffs.tariff_versions`:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| `id` | `uuid` | primary key |
+| `tariff_id` | `uuid` | NOT NULL, FK на `tariffs.tariffs.id` с `RESTRICT` |
+| `rate` | `numeric` | NOT NULL, значение не меньше нуля |
+| `effective_from` | `date` | NOT NULL |
+| `effective_to` | `date` | nullable, позже `effective_from` |
+| `created_at` | `timestamp with time zone` | NOT NULL, UTC |
+
+Неуникальный индекс `ix_tariff_versions_tariff_id_effective_from` поддерживает чтение истории. Exclusion constraint `ex_tariff_versions_tariff_id_effective_period` использует `daterange(..., '[)')` и расширение `btree_gist`, чтобы периоды одного Tariff не пересекались на уровне базы данных.
+
+Precision и scale ставки не фиксируются до утверждения валюты и единицы измерения. Rollback удаляет обе таблицы и schema `tariffs`, не затрагивая Readings. Расширение `btree_gist` сохраняется как глобальный объект базы данных: оно могло быть установлено администратором или использоваться другими схемами.
+
+## Billing
+
+Миграция `AddBilling` создаёт schema `billing` и таблицу `billing.charges`:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| `id` | `uuid` | primary key |
+| `account_id` | `uuid` | NOT NULL, FK на `accounts.accounts.id` с `RESTRICT` |
+| `tariff_version_id` | `uuid` | NOT NULL, FK на `tariffs.tariff_versions.id` с `RESTRICT` |
+| `period_start` | `date` | NOT NULL |
+| `period_end` | `date` | NOT NULL, позже `period_start` |
+| `amount` | `numeric` | NOT NULL, знак и точность не ограничены |
+| `created_at` | `timestamp with time zone` | NOT NULL, UTC |
+
+Уникальный индекс `ux_charges_account_id_period_start_period_end` предотвращает точный повтор начисления одного периода для Account. Индекс `ix_charges_tariff_version_id` поддерживает связь с исторической версией тарифа.
+
+Миграция не создаёт формулу, статус или баланс. Rollback удаляет таблицу и schema `billing`, не затрагивая Accounts и Tariffs.
+
 ## Интеграционные тесты
 
 Тесты требуют настоящую PostgreSQL и роль с правами `CREATE DATABASE`. Каждый тест создаёт отдельную базу `ecobilling_test_<guid>` и удаляет её после выполнения.

@@ -2,10 +2,13 @@ using EcoBilling.Infrastructure.Authentication;
 using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.Infrastructure.Persistence.Repositories;
 using EcoBilling.Modules.Accounts.Features.Abstractions;
+using EcoBilling.Modules.Billing.Features.Abstractions;
 using EcoBilling.Modules.Controllers.Features.Abstractions;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Meters.Features.Abstractions;
+using EcoBilling.Modules.Readings.Features.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
+using EcoBilling.Modules.Tariffs.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,6 +33,10 @@ public static class DependencyInjection
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IMeterRepository, MeterRepository>();
+        services.AddScoped<IMeterReadingRepository, MeterReadingRepository>();
+        services.AddScoped<ITariffRepository, TariffRepository>();
+        services.AddScoped<ITariffVersionRepository, TariffVersionRepository>();
+        services.AddScoped<IChargeRepository, ChargeRepository>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
 
         return services;

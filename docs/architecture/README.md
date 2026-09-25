@@ -14,6 +14,9 @@ EcoBilling — модульный монолит одного округа с о
 - [ADR-0008: граница лицевого счёта](ADR-0008-account-boundary.md)
 - [ADR-0009: адрес обслуживаемого объекта](ADR-0009-address-boundary.md)
 - [ADR-0010: базовая граница Meter](ADR-0010-meter-boundary.md)
+- [ADR-0011: базовая граница MeterReading](ADR-0011-reading-boundary.md)
+- [ADR-0012: Tariff и неизменяемые версии ставок](ADR-0012-tariff-versioning-boundary.md)
+- [ADR-0013: минимальная граница Charge без формулы расчёта](ADR-0013-billing-charge-foundation.md)
 - [Реестр открытых решений](open-decisions.md)
 
 Фактические `ProjectReference` проверяются проектом `EcoBilling.ArchitectureTests` непосредственно по `EcoBilling.slnx` и файлам проектов.

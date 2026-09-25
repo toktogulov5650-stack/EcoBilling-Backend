@@ -3,6 +3,7 @@ using System;
 using EcoBilling.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EcoBilling.Infrastructure.Migrations
 {
     [DbContext(typeof(EcoBillingDbContext))]
-    partial class EcoBillingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925115307_AddTariffs")]
+    partial class AddTariffs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,52 +106,6 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasDatabaseName("ix_addresses_search_text");
 
                     b.ToTable("addresses", "accounts");
-                });
-
-            modelBuilder.Entity("EcoBilling.Modules.Billing.Domain.Charge", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("account_id");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric")
-                        .HasColumnName("amount");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateOnly>("PeriodEnd")
-                        .HasColumnType("date")
-                        .HasColumnName("period_end");
-
-                    b.Property<DateOnly>("PeriodStart")
-                        .HasColumnType("date")
-                        .HasColumnName("period_start");
-
-                    b.Property<Guid>("TariffVersionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tariff_version_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_charges");
-
-                    b.HasIndex("TariffVersionId")
-                        .HasDatabaseName("ix_charges_tariff_version_id");
-
-                    b.HasIndex("AccountId", "PeriodStart", "PeriodEnd")
-                        .IsUnique()
-                        .HasDatabaseName("ux_charges_account_id_period_start_period_end");
-
-                    b.ToTable("charges", "billing", t =>
-                        {
-                            t.HasCheckConstraint("ck_charges_billing_period", "period_end > period_start");
-                        });
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Controllers.Domain.Controller", b =>
@@ -381,23 +338,6 @@ namespace EcoBilling.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_accounts_residents_resident_id");
-                });
-
-            modelBuilder.Entity("EcoBilling.Modules.Billing.Domain.Charge", b =>
-                {
-                    b.HasOne("EcoBilling.Modules.Accounts.Domain.Account", null)
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_charges_accounts_account_id");
-
-                    b.HasOne("EcoBilling.Modules.Tariffs.Domain.TariffVersion", null)
-                        .WithMany()
-                        .HasForeignKey("TariffVersionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_charges_tariff_versions_tariff_version_id");
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Controllers.Domain.Controller", b =>

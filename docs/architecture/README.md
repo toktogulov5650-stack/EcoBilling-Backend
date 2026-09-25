@@ -17,6 +17,7 @@ EcoBilling — модульный монолит одного округа с о
 - [ADR-0011: базовая граница MeterReading](ADR-0011-reading-boundary.md)
 - [ADR-0012: Tariff и неизменяемые версии ставок](ADR-0012-tariff-versioning-boundary.md)
 - [ADR-0013: минимальная граница Charge без формулы расчёта](ADR-0013-billing-charge-foundation.md)
+- [ADR-0014: подтверждённый Payment без провайдерского workflow](ADR-0014-confirmed-payment-foundation.md)
 - [Реестр открытых решений](open-decisions.md)
 
 Фактические `ProjectReference` проверяются проектом `EcoBilling.ArchitectureTests` непосредственно по `EcoBilling.slnx` и файлам проектов.

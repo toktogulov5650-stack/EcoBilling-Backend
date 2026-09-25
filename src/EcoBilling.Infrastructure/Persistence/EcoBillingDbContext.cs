@@ -3,6 +3,7 @@ using EcoBilling.Modules.Billing.Domain;
 using EcoBilling.Modules.Controllers.Domain;
 using EcoBilling.Modules.Identity.Domain;
 using EcoBilling.Modules.Meters.Domain;
+using EcoBilling.Modules.Payments.Domain;
 using EcoBilling.Modules.Readings.Domain;
 using EcoBilling.Modules.Residents.Domain;
 using EcoBilling.Modules.Tariffs.Domain;
@@ -32,6 +33,8 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
     public DbSet<TariffVersion> TariffVersions => Set<TariffVersion>();
 
     public DbSet<Charge> Charges => Set<Charge>();
+
+    public DbSet<Payment> Payments => Set<Payment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -168,6 +168,23 @@ Precision и scale ставки не фиксируются до утвержд�
 
 Миграция не создаёт формулу, статус или баланс. Rollback удаляет таблицу и schema `billing`, не затрагивая Accounts и Tariffs.
 
+## Payments
+
+Миграция `AddPayments` создаёт schema `payments` и таблицу `payments.payments`:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| `id` | `uuid` | primary key |
+| `account_id` | `uuid` | NOT NULL, FK на `accounts.accounts.id` с `RESTRICT` |
+| `amount` | `numeric` | NOT NULL, значение больше нуля |
+| `idempotency_key` | `text` | NOT NULL, unique во всём экземпляре округа |
+| `paid_at` | `timestamp with time zone` | NOT NULL, UTC |
+| `created_at` | `timestamp with time zone` | NOT NULL, UTC |
+
+Индекс `ix_payments_account_id` поддерживает получение истории Account. Уникальный индекс `ux_payments_idempotency_key` обеспечивает базовую идемпотентность; сравнение ключей регистрозависимо, значение сохраняется без нормализации.
+
+Миграция не создаёт ProviderReference, callback, статус, распределение по начислениям или баланс. Rollback удаляет таблицу и schema `payments`, не затрагивая Accounts или Billing.
+
 ## Интеграционные тесты
 
 Тесты требуют настоящую PostgreSQL и роль с правами `CREATE DATABASE`. Каждый тест создаёт отдельную базу `ecobilling_test_<guid>` и удаляет её после выполнения.

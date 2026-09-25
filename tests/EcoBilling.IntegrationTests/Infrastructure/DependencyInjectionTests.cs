@@ -7,6 +7,7 @@ using EcoBilling.Modules.Billing.Features.Abstractions;
 using EcoBilling.Modules.Controllers.Features.Abstractions;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Meters.Features.Abstractions;
+using EcoBilling.Modules.Payments.Features.Abstractions;
 using EcoBilling.Modules.Readings.Features.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Tariffs.Features.Abstractions;
@@ -47,6 +48,8 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<ITariffVersionRepository>());
         Assert.IsType<ChargeRepository>(
             scope.ServiceProvider.GetRequiredService<IChargeRepository>());
+        Assert.IsType<PaymentRepository>(
+            scope.ServiceProvider.GetRequiredService<IPaymentRepository>());
         Assert.IsType<PasswordHasherAdapter>(
             scope.ServiceProvider.GetRequiredService<IPasswordHasher>());
     }

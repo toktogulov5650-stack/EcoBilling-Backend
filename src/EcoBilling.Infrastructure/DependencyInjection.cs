@@ -6,6 +6,7 @@ using EcoBilling.Modules.Billing.Features.Abstractions;
 using EcoBilling.Modules.Controllers.Features.Abstractions;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Meters.Features.Abstractions;
+using EcoBilling.Modules.Payments.Features.Abstractions;
 using EcoBilling.Modules.Readings.Features.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Tariffs.Features.Abstractions;
@@ -37,6 +38,7 @@ public static class DependencyInjection
         services.AddScoped<ITariffRepository, TariffRepository>();
         services.AddScoped<ITariffVersionRepository, TariffVersionRepository>();
         services.AddScoped<IChargeRepository, ChargeRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
 
         return services;

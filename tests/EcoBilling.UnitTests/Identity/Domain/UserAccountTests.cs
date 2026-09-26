@@ -20,7 +20,23 @@ public sealed class UserAccountTests
         Assert.Same(login, result.Value.LoginIdentity);
         Assert.Equal("stored-hash", result.Value.PasswordHash);
         Assert.Equal(UserRole.Resident, result.Value.Role);
+        Assert.False(result.Value.RequiresPasswordChange);
         Assert.Equal(CreatedAt.ToUniversalTime(), result.Value.CreatedAt);
+    }
+
+    [Fact]
+    public void Create_WithInitialCredential_MarksPasswordSetupAsRequired()
+    {
+        var result = UserAccount.Create(
+            new UserId(Guid.NewGuid()),
+            CreateLogin(LoginType.Email, "director@example.com"),
+            "stored-hash",
+            UserRole.Director,
+            CreatedAt,
+            requiresPasswordChange: true);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.RequiresPasswordChange);
     }
 
     [Theory]

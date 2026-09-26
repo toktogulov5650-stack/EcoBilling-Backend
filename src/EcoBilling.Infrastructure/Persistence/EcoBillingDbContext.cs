@@ -1,3 +1,4 @@
+using EcoBilling.Infrastructure.Authentication;
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Billing.Domain;
 using EcoBilling.Modules.Controllers.Domain;
@@ -15,6 +16,11 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
     : DbContext(options)
 {
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+
+    public DbSet<DirectorProfile> Directors => Set<DirectorProfile>();
+
+    public DbSet<DirectorProvisioningOperation> DirectorProvisioningOperations =>
+        Set<DirectorProvisioningOperation>();
 
     public DbSet<Resident> Residents => Set<Resident>();
 
@@ -35,6 +41,9 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
     public DbSet<Charge> Charges => Set<Charge>();
 
     public DbSet<Payment> Payments => Set<Payment>();
+
+    internal DbSet<InternalServiceTokenReplay> InternalServiceTokenReplays =>
+        Set<InternalServiceTokenReplay>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

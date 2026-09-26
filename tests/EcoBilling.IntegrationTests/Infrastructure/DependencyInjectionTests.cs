@@ -10,8 +10,8 @@ using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Meters.Features.Abstractions;
 using EcoBilling.Modules.Payments.Features.Abstractions;
 using EcoBilling.Modules.Readings.Features.Abstractions;
-using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Reports.Features.Abstractions;
+using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Tariffs.Features.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,8 +23,11 @@ public sealed class DependencyInjectionTests
     public void AddEcoBillingInfrastructure_RegistersCurrentInfrastructureServices()
     {
         var services = new ServiceCollection();
-        services.AddEcoBillingInfrastructure(
-            "Host=127.0.0.1;Database=not-opened;Username=not-used;Password=not-used");
+        services
+            .AddEcoBillingInfrastructure(
+                "Host=127.0.0.1;Database=not-opened;Username=not-used;Password=not-used")
+            .AddDirectorProvisioningSecurity(
+                "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=");
         using var serviceProvider = services.BuildServiceProvider();
         using var scope = serviceProvider.CreateScope();
 
@@ -32,6 +35,13 @@ public sealed class DependencyInjectionTests
             scope.ServiceProvider.GetRequiredService<EcoBillingDbContext>());
         Assert.IsType<UserAccountRepository>(
             scope.ServiceProvider.GetRequiredService<IUserAccountRepository>());
+        Assert.IsType<DirectorProvisioningRepository>(
+            scope.ServiceProvider.GetRequiredService<IDirectorProvisioningRepository>());
+        Assert.IsType<InternalServiceTokenReplayStore>(
+            scope.ServiceProvider.GetRequiredService<IInternalServiceTokenReplayStore>());
+        Assert.IsType<DirectorProvisioningRequestFingerprinter>(
+            scope.ServiceProvider
+                .GetRequiredService<IDirectorProvisioningRequestFingerprinter>());
         Assert.IsType<ResidentRepository>(
             scope.ServiceProvider.GetRequiredService<IResidentRepository>());
         Assert.IsType<ControllerRepository>(

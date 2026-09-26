@@ -41,6 +41,15 @@ internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAc
             .HasConversion<int>()
             .IsRequired();
 
+        builder.HasIndex(userAccount => userAccount.Role)
+            .HasFilter("\"role\" = 3")
+            .IsUnique()
+            .HasDatabaseName("ux_user_accounts_single_director");
+
+        builder.Property(userAccount => userAccount.RequiresPasswordChange)
+            .HasColumnName("requires_password_change")
+            .IsRequired();
+
         builder.Property(userAccount => userAccount.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("timestamp with time zone")

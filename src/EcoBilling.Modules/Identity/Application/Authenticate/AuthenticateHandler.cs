@@ -59,6 +59,11 @@ public sealed class AuthenticateHandler
             return Result<AuthenticationResult>.Failure(IdentityErrors.InvalidCredentials);
         }
 
+        if (userAccount.RequiresPasswordChange)
+        {
+            return Result<AuthenticationResult>.Failure(IdentityErrors.PasswordSetupRequired);
+        }
+
         var authenticatedUser = new AuthenticatedUser(userAccount.Id, userAccount.Role);
         return Result<AuthenticationResult>.Success(
             new AuthenticationResult(authenticatedUser));

@@ -20,6 +20,7 @@ EcoBilling — модульный монолит одного округа с о
 - [ADR-0014: подтверждённый Payment без провайдерского workflow](ADR-0014-confirmed-payment-foundation.md)
 - [ADR-0015: Reports как read-only проекция существующих данных](ADR-0015-reports-read-model-boundary.md)
 - [ADR-0016: граница выполнения фоновых заданий Worker](ADR-0016-worker-execution-boundary.md)
+- [ADR-0017: внутренний контракт provisioning директора](ADR-0017-control-director-provisioning-contract.md)
 - [Реестр открытых решений](open-decisions.md)
 
 Фактические `ProjectReference` проверяются проектом `EcoBilling.ArchitectureTests` непосредственно по `EcoBilling.slnx` и файлам проектов.

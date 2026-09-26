@@ -9,8 +9,8 @@ using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Meters.Features.Abstractions;
 using EcoBilling.Modules.Payments.Features.Abstractions;
 using EcoBilling.Modules.Readings.Features.Abstractions;
-using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Reports.Features.Abstractions;
+using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Tariffs.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +31,8 @@ public static class DependencyInjection
                 .UseNpgsql(connectionString)
                 .EnableSensitiveDataLogging(false));
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
+        services.AddScoped<IDirectorProvisioningRepository, DirectorProvisioningRepository>();
+        services.AddScoped<IInternalServiceTokenReplayStore, InternalServiceTokenReplayStore>();
         services.AddScoped<IResidentRepository, ResidentRepository>();
         services.AddScoped<IControllerRepository, ControllerRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
@@ -43,6 +45,19 @@ public static class DependencyInjection
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IDistrictOperationalSummaryReader, DistrictOperationalSummaryReader>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddDirectorProvisioningSecurity(
+        this IServiceCollection services,
+        string requestFingerprintKey)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestFingerprintKey);
+
+        services.AddSingleton<IDirectorProvisioningRequestFingerprinter>(
+            new DirectorProvisioningRequestFingerprinter(requestFingerprintKey));
 
         return services;
     }

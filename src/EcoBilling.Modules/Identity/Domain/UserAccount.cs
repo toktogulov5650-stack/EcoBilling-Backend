@@ -16,12 +16,14 @@ public sealed class UserAccount
         LoginIdentity loginIdentity,
         string passwordHash,
         UserRole role,
+        bool requiresPasswordChange,
         DateTimeOffset createdAt)
     {
         Id = id;
         LoginIdentity = loginIdentity;
         PasswordHash = passwordHash;
         Role = role;
+        RequiresPasswordChange = requiresPasswordChange;
         CreatedAt = createdAt;
     }
 
@@ -33,6 +35,8 @@ public sealed class UserAccount
 
     public UserRole Role { get; private set; }
 
+    public bool RequiresPasswordChange { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public static Result<UserAccount> Create(
@@ -40,7 +44,8 @@ public sealed class UserAccount
         LoginIdentity? loginIdentity,
         string? passwordHash,
         UserRole role,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        bool requiresPasswordChange = false)
     {
         ArgumentNullException.ThrowIfNull(id);
 
@@ -65,6 +70,12 @@ public sealed class UserAccount
         }
 
         return Result<UserAccount>.Success(
-            new UserAccount(id, loginIdentity, passwordHash, role, createdAt.ToUniversalTime()));
+            new UserAccount(
+                id,
+                loginIdentity,
+                passwordHash,
+                role,
+                requiresPasswordChange,
+                createdAt.ToUniversalTime()));
     }
 }

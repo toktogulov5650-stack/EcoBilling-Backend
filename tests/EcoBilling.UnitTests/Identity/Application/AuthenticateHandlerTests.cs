@@ -80,6 +80,34 @@ public sealed class AuthenticateHandlerTests
     }
 
     [Fact]
+    public async Task Handle_RejectsInitialCredentialUntilPasswordSetupCompletes()
+    {
+        var loginIdentity = LoginIdentity.Create(
+            LoginType.Email,
+            "director@example.com").Value;
+        var account = UserAccount.Create(
+            new UserId(Guid.NewGuid()),
+            loginIdentity,
+            StoredHash,
+            UserRole.Director,
+            CreatedAt,
+            requiresPasswordChange: true).Value;
+        var handler = CreateHandler(
+            new RecordingUserAccountRepository(account),
+            passwordMatches: true);
+
+        var result = await handler.Handle(
+            new AuthenticateCommand(
+                LoginType.Email,
+                "director@example.com",
+                ValidPassword),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(IdentityErrors.PasswordSetupRequired, result.Error);
+    }
+
+    [Fact]
     public async Task Handle_HidesWhetherAccountExists()
     {
         var missingUserHandler = CreateHandler(

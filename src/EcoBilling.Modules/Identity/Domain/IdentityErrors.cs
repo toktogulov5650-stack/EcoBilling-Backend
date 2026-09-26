@@ -23,4 +23,9 @@ public static class IdentityErrors
         "auth.invalid_password_hash",
         "The password hash is invalid.",
         ErrorType.Validation);
+
+    public static Error PasswordSetupRequired { get; } = new(
+        "auth.password_setup_required",
+        "The initial credential must be replaced before authentication.",
+        ErrorType.Forbidden);
 }

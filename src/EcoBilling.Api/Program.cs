@@ -2,9 +2,12 @@ using EcoBilling.Api.Configuration;
 using EcoBilling.Api.InternalEndpoints;
 using EcoBilling.Api.Middleware;
 using EcoBilling.Infrastructure;
+using EcoBilling.Infrastructure.Observability;
 using EcoBilling.Modules.Identity.Application.ProvisionDirector;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddEcoBillingStructuredLogging(builder.Configuration);
 
 var connectionString = builder.Configuration.GetConnectionString("EcoBilling");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -52,6 +55,10 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 builder.Services.AddEcoBillingInfrastructure(connectionString);
+builder.Services.AddEcoBillingObservability(
+    builder.Configuration,
+    EcoBillingTelemetry.ApiServiceName,
+    instrumentAspNetCore: true);
 builder.Services.AddDirectorProvisioningSecurity(requestFingerprintKey);
 builder.Services.AddInternalServiceAuthentication(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
@@ -60,6 +67,7 @@ builder.Services.AddScoped<ProvisionDirectorHandler>();
 var app = builder.Build();
 
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<RequestObservabilityMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
@@ -72,8 +80,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }))
-    .WithName("Health");
+app.MapEcoBillingHealthEndpoints();
 
 app.MapDirectorProvisioningEndpoints();
 

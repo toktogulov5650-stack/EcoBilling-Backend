@@ -1,7 +1,10 @@
 using EcoBilling.Infrastructure;
+using EcoBilling.Infrastructure.Observability;
 using EcoBilling.Worker.Execution;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Logging.AddEcoBillingStructuredLogging(builder.Configuration);
 
 var connectionString = builder.Configuration.GetConnectionString("EcoBilling");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -11,6 +14,10 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddEcoBillingInfrastructure(connectionString);
+builder.Services.AddEcoBillingObservability(
+    builder.Configuration,
+    EcoBillingTelemetry.WorkerServiceName,
+    instrumentAspNetCore: false);
 builder.Services
     .AddOptions<WorkerTaskExecutionOptions>()
     .Bind(builder.Configuration.GetSection(WorkerTaskExecutionOptions.SectionName))

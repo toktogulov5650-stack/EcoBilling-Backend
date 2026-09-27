@@ -14,6 +14,7 @@ using EcoBilling.Modules.Reports.Features.Abstractions;
 using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Tariffs.Features.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 
 namespace EcoBilling.IntegrationTests.Infrastructure;
 
@@ -33,6 +34,8 @@ public sealed class DependencyInjectionTests
 
         Assert.IsType<EcoBillingDbContext>(
             scope.ServiceProvider.GetRequiredService<EcoBillingDbContext>());
+        Assert.IsAssignableFrom<NpgsqlDataSource>(
+            scope.ServiceProvider.GetRequiredService<NpgsqlDataSource>());
         Assert.IsType<UserAccountRepository>(
             scope.ServiceProvider.GetRequiredService<IUserAccountRepository>());
         Assert.IsType<DirectorProvisioningRepository>(

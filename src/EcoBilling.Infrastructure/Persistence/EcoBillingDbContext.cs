@@ -1,4 +1,6 @@
+using EcoBilling.Infrastructure.Auditing;
 using EcoBilling.Infrastructure.Authentication;
+using EcoBilling.Infrastructure.Outbox;
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Billing.Domain;
 using EcoBilling.Modules.Controllers.Domain;
@@ -42,12 +44,40 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
 
     public DbSet<Payment> Payments => Set<Payment>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
     internal DbSet<InternalServiceTokenReplay> InternalServiceTokenReplays =>
         Set<InternalServiceTokenReplay>();
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        EnsureAuditLogsAreAppendOnly();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(
+        bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureAuditLogsAreAppendOnly();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("btree_gist");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EcoBillingDbContext).Assembly);
+    }
+
+    private void EnsureAuditLogsAreAppendOnly()
+    {
+        if (ChangeTracker.Entries<AuditLog>().Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException(
+                "Audit log entries are append-only and cannot be modified or deleted.");
+        }
     }
 }

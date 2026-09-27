@@ -35,6 +35,8 @@ public sealed class ProvisionDirectorHandler
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.ActorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(command.CorrelationId);
 
         if (string.IsNullOrWhiteSpace(command.IdempotencyKey) ||
             command.IdempotencyKey.Length >
@@ -100,6 +102,8 @@ public sealed class ProvisionDirectorHandler
             userAccount.Value,
             director.Value,
             operation.Value,
+            command.ActorId,
+            command.CorrelationId,
             cancellationToken);
 
         return persistenceResult.Outcome switch

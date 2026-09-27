@@ -42,6 +42,8 @@ public sealed class ProvisionDirectorHandlerTests
             repository.Operation.RequestFingerprint,
             StringComparison.Ordinal);
         Assert.Equal(repository.Director.Id, repository.Operation.DirectorId);
+        Assert.Equal("ecobilling-control", repository.ActorId);
+        Assert.Equal("trace-id", repository.CorrelationId);
     }
 
     [Fact]
@@ -100,7 +102,9 @@ public sealed class ProvisionDirectorHandlerTests
                 key,
                 "Ada Lovelace",
                 "director@example.com",
-                InitialCredential),
+                InitialCredential,
+                "ecobilling-control",
+                "trace-id"),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -123,7 +127,9 @@ public sealed class ProvisionDirectorHandlerTests
                 "operation-1",
                 "Ada Lovelace",
                 "director@example.com",
-                credential),
+                credential,
+                "ecobilling-control",
+                "trace-id"),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -142,6 +148,8 @@ public sealed class ProvisionDirectorHandlerTests
         Assert.DoesNotContain("Ada Lovelace", text, StringComparison.Ordinal);
         Assert.DoesNotContain("director@example.com", text, StringComparison.Ordinal);
         Assert.DoesNotContain(InitialCredential, text, StringComparison.Ordinal);
+        Assert.DoesNotContain("ecobilling-control", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("trace-id", text, StringComparison.Ordinal);
         Assert.Contains("REDACTED", text, StringComparison.Ordinal);
     }
 
@@ -150,7 +158,9 @@ public sealed class ProvisionDirectorHandlerTests
             "provision-director-1",
             "  Ada Lovelace  ",
             "  Director@Example.com  ",
-            InitialCredential);
+            InitialCredential,
+            "ecobilling-control",
+            "trace-id");
 
     private static ProvisionDirectorHandler CreateHandler(
         RecordingRepository repository,
@@ -175,16 +185,24 @@ public sealed class ProvisionDirectorHandlerTests
 
         public DirectorProvisioningOperation Operation { get; private set; } = null!;
 
+        public string ActorId { get; private set; } = string.Empty;
+
+        public string CorrelationId { get; private set; } = string.Empty;
+
         public Task<DirectorProvisioningPersistenceResult> ProvisionAsync(
             UserAccount userAccount,
             DirectorProfile director,
             DirectorProvisioningOperation operation,
+            string actorId,
+            string correlationId,
             CancellationToken cancellationToken)
         {
             CallCount++;
             UserAccount = userAccount;
             Director = director;
             Operation = operation;
+            ActorId = actorId;
+            CorrelationId = correlationId;
             return Task.FromResult(
                 new DirectorProvisioningPersistenceResult(
                     outcome,

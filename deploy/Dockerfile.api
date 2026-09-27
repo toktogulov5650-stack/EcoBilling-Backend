@@ -1,12 +1,41 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
-COPY . .
-RUN dotnet restore EcoBilling.slnx
-RUN dotnet publish src/EcoBilling.Api/EcoBilling.Api.csproj -c Release -o /app/publish --no-restore
+ARG DOTNET_SDK_IMAGE=mcr.microsoft.com/dotnet/sdk:10.0.401
+ARG DOTNET_ASPNET_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.12
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+FROM ${DOTNET_SDK_IMAGE} AS restore
+WORKDIR /src
+COPY Directory.Build.props Directory.Packages.props global.json ./
+COPY .config/dotnet-tools.json .config/dotnet-tools.json
+COPY src/EcoBilling.Api/EcoBilling.Api.csproj src/EcoBilling.Api/
+COPY src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj src/EcoBilling.Infrastructure/
+COPY src/EcoBilling.Modules/EcoBilling.Modules.csproj src/EcoBilling.Modules/
+COPY src/EcoBilling.SharedKernel/EcoBilling.SharedKernel.csproj src/EcoBilling.SharedKernel/
+RUN dotnet restore src/EcoBilling.Api/EcoBilling.Api.csproj
+
+FROM restore AS build
+COPY src/ src/
+RUN dotnet publish src/EcoBilling.Api/EcoBilling.Api.csproj \
+    --configuration Release \
+    --output /app/publish \
+    --no-restore \
+    /p:UseAppHost=false
+
+FROM build AS migrations
+RUN chown -R $APP_UID:$APP_UID /src
+USER $APP_UID
+RUN dotnet tool restore
+ENTRYPOINT ["dotnet", "tool", "run", "dotnet-ef", "--", "database", "update", "--project", "src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj", "--startup-project", "src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj", "--configuration", "Release", "--no-build"]
+
+FROM ${DOTNET_ASPNET_IMAGE} AS final
 WORKDIR /app
-COPY --from=build /app/publish .
-ENV ASPNETCORE_HTTP_PORTS=8080
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build --chown=$APP_UID:$APP_UID /app/publish .
+ENV ASPNETCORE_HTTP_PORTS=8080 \
+    DOTNET_EnableDiagnostics=0
 EXPOSE 8080
+USER $APP_UID
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl --fail --silent --show-error http://127.0.0.1:8080/health/live || exit 1
 ENTRYPOINT ["dotnet", "EcoBilling.Api.dll"]

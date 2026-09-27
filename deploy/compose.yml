@@ -1,43 +1,118 @@
+name: ecobilling
+
+x-app-security: &app-security
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+
+x-database-connection: &database-connection
+  ConnectionStrings__EcoBilling: Host=postgres;Port=5432;Database=ecobilling;Username=ecobilling;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+
 services:
   postgres:
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: ecobilling
       POSTGRES_USER: ecobilling
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecobilling_dev}
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    expose:
+      - "5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ecobilling -d ecobilling"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - backend
 
-  api:
+  migrations:
+    <<: *app-security
     build:
       context: ..
       dockerfile: deploy/Dockerfile.api
+      target: migrations
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=ecobilling;Username=ecobilling;Password=${POSTGRES_PASSWORD:-ecobilling_dev}
-    ports:
-      - "8080:8080"
+      ECOBILLING_DESIGN_TIME_CONNECTION: Host=postgres;Port=5432;Database=ecobilling;Username=ecobilling;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
     depends_on:
       postgres:
         condition: service_healthy
+    restart: "no"
+    networks:
+      - backend
+
+  api:
+    <<: *app-security
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+      target: final
+    environment:
+      <<: *database-connection
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: "8080"
+      DirectorProvisioning__RequestFingerprintKey: ${DIRECTOR_PROVISIONING_FINGERPRINT_KEY:?Set DIRECTOR_PROVISIONING_FINGERPRINT_KEY in deploy/.env}
+      InternalServiceAuthentication__Issuer: ${INTERNAL_SERVICE_ISSUER:-https://control.ecobilling.local}
+      InternalServiceAuthentication__Audience: ${INTERNAL_SERVICE_AUDIENCE:-ecobilling-local}
+      InternalServiceAuthentication__SigningKeys__0__KeyId: ${INTERNAL_SERVICE_KEY_ID:-control-local-1}
+      InternalServiceAuthentication__SigningKeys__0__PublicKeyPem: ${INTERNAL_SERVICE_PUBLIC_KEY_PEM:?Set INTERNAL_SERVICE_PUBLIC_KEY_PEM in deploy/.env}
+      Observability__OtlpEndpoint: ${OTLP_ENDPOINT:-}
+    ports:
+      - "${ECOBILLING_API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - backend
 
   worker:
+    <<: *app-security
     build:
       context: ..
       dockerfile: deploy/Dockerfile.worker
+      target: final
     environment:
-      DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__Database: Host=postgres;Port=5432;Database=ecobilling;Username=ecobilling;Password=${POSTGRES_PASSWORD:-ecobilling_dev}
+      <<: *database-connection
+      DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT:-Production}
+      Observability__OtlpEndpoint: ${OTLP_ENDPOINT:-}
     depends_on:
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - backend
 
 volumes:
   postgres-data:
+
+networks:
+  backend:
+    driver: bridge

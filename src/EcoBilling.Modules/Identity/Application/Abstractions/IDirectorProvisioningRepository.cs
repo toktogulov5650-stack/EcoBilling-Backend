@@ -8,5 +8,7 @@ public interface IDirectorProvisioningRepository
         UserAccount userAccount,
         DirectorProfile director,
         DirectorProvisioningOperation operation,
+        string actorId,
+        string correlationId,
         CancellationToken cancellationToken);
 }

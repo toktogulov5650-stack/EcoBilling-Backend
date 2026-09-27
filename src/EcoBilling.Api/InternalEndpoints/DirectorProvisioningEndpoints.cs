@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using EcoBilling.Api.Configuration;
 using EcoBilling.Modules.Identity.Application.ProvisionDirector;
 using EcoBilling.Modules.Identity.Domain;
@@ -39,7 +40,11 @@ public static class DirectorProvisioningEndpoints
                 idempotencyKey,
                 request.FullName,
                 request.Email,
-                request.InitialCredential),
+                request.InitialCredential,
+                httpContext.User.FindFirst(JwtRegisteredClaimNames.Iss)?.Value
+                    ?? throw new InvalidOperationException(
+                        "Authenticated internal service is missing its issuer."),
+                httpContext.TraceIdentifier),
             cancellationToken);
 
         if (result.IsFailure)

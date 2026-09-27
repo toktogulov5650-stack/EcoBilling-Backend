@@ -1,12 +1,15 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using EcoBilling.Infrastructure.Observability;
 using Microsoft.Extensions.Options;
 
 namespace EcoBilling.Worker.Execution;
 
 public sealed class WorkerTaskRunner
 {
-    private static readonly Meter Meter = new("EcoBilling.Worker");
+    private static readonly ActivitySource ActivitySource = new(
+        EcoBillingTelemetry.WorkerActivitySourceName);
+    private static readonly Meter Meter = new(EcoBillingTelemetry.WorkerMeterName);
     private static readonly Counter<long> AttemptCounter = Meter.CreateCounter<long>(
         "ecobilling.worker.task.attempts");
     private static readonly Counter<long> CompletionCounter = Meter.CreateCounter<long>(
@@ -58,6 +61,10 @@ public sealed class WorkerTaskRunner
 
         var startedAt = timeProvider.GetTimestamp();
         var taskNameTag = new KeyValuePair<string, object?>("worker.task.name", task.Name);
+        using var activity = ActivitySource.StartActivity(
+            "worker.task.run",
+            ActivityKind.Internal);
+        activity?.SetTag("worker.task.name", task.Name);
 
         try
         {
@@ -65,6 +72,13 @@ public sealed class WorkerTaskRunner
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 AttemptCounter.Add(1, taskNameTag);
+                activity?.AddEvent(
+                    new ActivityEvent(
+                        "worker.task.attempt",
+                        tags: new ActivityTagsCollection
+                        {
+                            ["worker.task.attempt"] = attempt
+                        }));
 
                 try
                 {
@@ -82,6 +96,9 @@ public sealed class WorkerTaskRunner
                         taskNameTag,
                         new KeyValuePair<string, object?>("worker.task.outcome", "success"));
                     DurationHistogram.Record(elapsed.TotalMilliseconds, taskNameTag);
+                    activity?.SetTag("worker.task.attempt_count", attempt);
+                    activity?.SetTag("worker.task.outcome", "success");
+                    activity?.SetStatus(ActivityStatusCode.Ok);
                     logger.LogInformation(
                         "Worker task {WorkerTaskName} completed in {WorkerTaskElapsedMilliseconds} ms after {WorkerTaskAttemptCount} attempt(s)",
                         task.Name,
@@ -96,6 +113,14 @@ public sealed class WorkerTaskRunner
                 catch (Exception exception) when (attempt < options.MaxAttempts)
                 {
                     RetryCounter.Add(1, taskNameTag);
+                    activity?.AddEvent(
+                        new ActivityEvent(
+                            "worker.task.retry",
+                            tags: new ActivityTagsCollection
+                            {
+                                ["worker.task.attempt"] = attempt,
+                                ["error.type"] = exception.GetType().FullName
+                            }));
                     logger.LogWarning(
                         exception,
                         "Worker task {WorkerTaskName} failed on attempt {WorkerTaskAttempt}; retrying after {WorkerTaskRetryDelay}",
@@ -113,6 +138,10 @@ public sealed class WorkerTaskRunner
                         taskNameTag,
                         new KeyValuePair<string, object?>("worker.task.outcome", "failure"));
                     DurationHistogram.Record(elapsed.TotalMilliseconds, taskNameTag);
+                    activity?.SetTag("worker.task.attempt_count", attempt);
+                    activity?.SetTag("worker.task.outcome", "failure");
+                    activity?.SetTag("error.type", exception.GetType().FullName);
+                    activity?.SetStatus(ActivityStatusCode.Error);
                     logger.LogError(
                         exception,
                         "Worker task {WorkerTaskName} failed after {WorkerTaskAttemptCount} attempt(s)",
@@ -130,6 +159,8 @@ public sealed class WorkerTaskRunner
                 taskNameTag,
                 new KeyValuePair<string, object?>("worker.task.outcome", "canceled"));
             DurationHistogram.Record(elapsed.TotalMilliseconds, taskNameTag);
+            activity?.SetTag("worker.task.outcome", "canceled");
+            activity?.SetStatus(ActivityStatusCode.Unset);
             logger.LogInformation(
                 "Worker task {WorkerTaskName} was canceled after {WorkerTaskElapsedMilliseconds} ms",
                 task.Name,

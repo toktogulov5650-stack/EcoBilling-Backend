@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using EcoBilling.Api.Configuration;
 using EcoBilling.Api.InternalEndpoints;
+using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -61,6 +62,15 @@ public sealed class InternalDirectorProvisioningApiTests
         Assert.Equal("created", result.Status);
         var responseBody = await response.Content.ReadAsStringAsync();
         Assert.DoesNotContain(InitialCredential, responseBody, StringComparison.Ordinal);
+        await using var context = host.CreateContext();
+        var audit = await context.AuditLogs.AsNoTracking().SingleAsync();
+        Assert.Equal(Issuer, audit.ActorId);
+        Assert.Equal("control-trace-1", audit.CorrelationId);
+        Assert.Equal(result.DirectorId.ToString("D"), audit.EntityId);
+        Assert.DoesNotContain(
+            InitialCredential,
+            audit.AfterData,
+            StringComparison.Ordinal);
     }
 
     [PostgreSqlFact]
@@ -309,6 +319,8 @@ public sealed class InternalDirectorProvisioningApiTests
         }
 
         public HttpClient Client { get; }
+
+        public EcoBillingDbContext CreateContext() => database.CreateContext();
 
         public static async Task<TestApiHost> CreateAsync()
         {

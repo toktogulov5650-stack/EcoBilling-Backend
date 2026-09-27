@@ -1,4 +1,5 @@
 using EcoBilling.Infrastructure.Authentication;
+using EcoBilling.Infrastructure.Observability;
 using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.Infrastructure.Persistence.Reports;
 using EcoBilling.Infrastructure.Persistence.Repositories;
@@ -14,6 +15,9 @@ using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.Modules.Tariffs.Features.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace EcoBilling.Infrastructure;
 
@@ -26,10 +30,35 @@ public static class DependencyInjection
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        services.AddDbContext<EcoBillingDbContext>(options =>
+        services.AddSingleton(serviceProvider =>
+        {
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString)
+            {
+                Name = "EcoBilling"
+            };
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+            if (loggerFactory is not null)
+            {
+                dataSourceBuilder.UseLoggerFactory(loggerFactory);
+            }
+
+            return dataSourceBuilder.Build();
+        });
+        services.AddDbContext<EcoBillingDbContext>((serviceProvider, options) =>
             options
-                .UseNpgsql(connectionString)
+                .UseNpgsql(serviceProvider.GetRequiredService<NpgsqlDataSource>())
                 .EnableSensitiveDataLogging(false));
+        services
+            .AddHealthChecks()
+            .AddCheck(
+                "self",
+                () => HealthCheckResult.Healthy(),
+                tags: ["live"])
+            .AddCheck<PostgreSqlReadinessHealthCheck>(
+                "postgresql",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: ["ready"],
+                timeout: TimeSpan.FromSeconds(5));
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
         services.AddScoped<IDirectorProvisioningRepository, DirectorProvisioningRepository>();
         services.AddScoped<IInternalServiceTokenReplayStore, InternalServiceTokenReplayStore>();

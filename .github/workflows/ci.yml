@@ -5,15 +5,68 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  NUGET_XMLDOC_MODE: skip
+  ECOBILLING_TEST_POSTGRES_CONNECTION: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=ecobilling_ci;Include Error Detail=false
 
 jobs:
-  build-and-test:
+  verify:
+    name: Restore, build, test and containers
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ecobilling_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
-          dotnet-version: 10.0.x
-      - run: dotnet restore EcoBilling.slnx
-      - run: dotnet build EcoBilling.slnx --configuration Release --no-restore
-      - run: dotnet test EcoBilling.slnx --configuration Release --no-build
+          persist-credentials: false
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.401
+
+      - name: Restore
+        run: dotnet restore EcoBilling.slnx -warnaserror
+
+      - name: Verify formatting
+        run: dotnet format EcoBilling.slnx --no-restore --verify-no-changes
+
+      - name: Build Release
+        run: dotnet build EcoBilling.slnx --configuration Release --no-restore
+
+      - name: Test Release
+        run: dotnet test EcoBilling.slnx --configuration Release --no-build
+
+      - name: Validate Docker Compose
+        run: docker compose --env-file deploy/.env.example --file deploy/compose.yml config --quiet
+
+      - name: Build container images
+        run: docker compose --env-file deploy/.env.example --file deploy/compose.yml build api worker migrations

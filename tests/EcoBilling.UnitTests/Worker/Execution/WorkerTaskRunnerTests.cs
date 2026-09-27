@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using EcoBilling.Worker.Execution;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,33 @@ public sealed class WorkerTaskRunnerTests
         await runner.RunAsync(task, CancellationToken.None);
 
         Assert.Equal(1, task.AttemptCount);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenTaskSucceeds_EmitsTraceWithSafeOutcomeTags()
+    {
+        Activity? completedActivity = null;
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "EcoBilling.Worker",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllData,
+            ActivityStopped = activity => completedActivity = activity
+        };
+        ActivitySource.AddActivityListener(listener);
+        var task = new RecordingWorkerTask((_, _) => Task.CompletedTask);
+        var runner = CreateRunner(maxAttempts: 1);
+
+        await runner.RunAsync(task, CancellationToken.None);
+
+        Assert.NotNull(completedActivity);
+        Assert.Equal("worker.task.run", completedActivity.OperationName);
+        Assert.Equal(ActivityStatusCode.Ok, completedActivity.Status);
+        Assert.Equal(
+            "recording-task",
+            completedActivity.GetTagItem("worker.task.name"));
+        Assert.Equal("success", completedActivity.GetTagItem("worker.task.outcome"));
+        Assert.Equal(1, completedActivity.GetTagItem("worker.task.attempt_count"));
     }
 
     [Fact]

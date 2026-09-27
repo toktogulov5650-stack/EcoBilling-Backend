@@ -11,6 +11,8 @@ public sealed class DirectorProvisioningPersistenceTests
 {
     private const string Fingerprint =
         "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
+    private const string ActorId = "ecobilling-control";
+    private const string CorrelationId = "trace-director-provisioning";
 
     [PostgreSqlFact]
     public async Task ProvisionAsync_CreatesDirectorAccountProfileAndOperationAtomically()
@@ -25,6 +27,8 @@ public sealed class DirectorProvisioningPersistenceTests
             input.UserAccount,
             input.Director,
             input.Operation,
+            ActorId,
+            CorrelationId,
             CancellationToken.None);
 
         Assert.Equal(DirectorProvisioningPersistenceOutcome.Created, result.Outcome);
@@ -33,11 +37,34 @@ public sealed class DirectorProvisioningPersistenceTests
         var storedOperation = await context.DirectorProvisioningOperations
             .AsNoTracking()
             .SingleAsync();
+        var storedAudit = await context.AuditLogs.AsNoTracking().SingleAsync();
         Assert.True(storedAccount.RequiresPasswordChange);
         Assert.Equal(input.UserAccount.PasswordHash, storedAccount.PasswordHash);
         Assert.Equal(input.Director.Id, storedDirector.Id);
         Assert.Equal(input.Operation.Id, storedOperation.Id);
         Assert.Equal(input.Director.Id, storedOperation.DirectorId);
+        Assert.Equal("InternalService", storedAudit.ActorType);
+        Assert.Equal(ActorId, storedAudit.ActorId);
+        Assert.Equal("identity.director.provisioned", storedAudit.Action);
+        Assert.Equal("Director", storedAudit.EntityType);
+        Assert.Equal(input.Director.Id.Value.ToString("D"), storedAudit.EntityId);
+        Assert.Null(storedAudit.BeforeData);
+        Assert.NotNull(storedAudit.AfterData);
+        Assert.Contains(
+            input.Operation.Id.Value.ToString("D"),
+            storedAudit.AfterData,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            input.UserAccount.PasswordHash,
+            storedAudit.AfterData,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "director@example.com",
+            storedAudit.AfterData,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(CorrelationId, storedAudit.CorrelationId);
+        Assert.Equal(input.Operation.CreatedAt, storedAudit.CreatedAt);
+        Assert.Empty(await context.OutboxMessages.ToListAsync());
     }
 
     [PostgreSqlFact]
@@ -52,6 +79,8 @@ public sealed class DirectorProvisioningPersistenceTests
             first.UserAccount,
             first.Director,
             first.Operation,
+            ActorId,
+            CorrelationId,
             CancellationToken.None);
         context.ChangeTracker.Clear();
         var replay = CreateInput("operation-1", Fingerprint, "another@example.com");
@@ -60,6 +89,8 @@ public sealed class DirectorProvisioningPersistenceTests
             replay.UserAccount,
             replay.Director,
             replay.Operation,
+            ActorId,
+            "trace-replay",
             CancellationToken.None);
 
         Assert.Equal(DirectorProvisioningPersistenceOutcome.Replayed, result.Outcome);
@@ -68,6 +99,7 @@ public sealed class DirectorProvisioningPersistenceTests
         Assert.Equal(1, await context.UserAccounts.CountAsync());
         Assert.Equal(1, await context.Directors.CountAsync());
         Assert.Equal(1, await context.DirectorProvisioningOperations.CountAsync());
+        Assert.Equal(1, await context.AuditLogs.CountAsync());
     }
 
     [PostgreSqlFact]
@@ -82,6 +114,8 @@ public sealed class DirectorProvisioningPersistenceTests
             first.UserAccount,
             first.Director,
             first.Operation,
+            ActorId,
+            CorrelationId,
             CancellationToken.None);
         context.ChangeTracker.Clear();
         var differentFingerprint = new string('A', Fingerprint.Length);
@@ -94,12 +128,15 @@ public sealed class DirectorProvisioningPersistenceTests
             conflicting.UserAccount,
             conflicting.Director,
             conflicting.Operation,
+            ActorId,
+            "trace-conflict",
             CancellationToken.None);
 
         Assert.Equal(
             DirectorProvisioningPersistenceOutcome.IdempotencyConflict,
             result.Outcome);
         Assert.Equal(1, await context.Directors.CountAsync());
+        Assert.Equal(1, await context.AuditLogs.CountAsync());
     }
 
     [PostgreSqlFact]
@@ -114,6 +151,8 @@ public sealed class DirectorProvisioningPersistenceTests
             first.UserAccount,
             first.Director,
             first.Operation,
+            ActorId,
+            CorrelationId,
             CancellationToken.None);
         context.ChangeTracker.Clear();
         var second = CreateInput("operation-2", Fingerprint, "another@example.com");
@@ -122,12 +161,15 @@ public sealed class DirectorProvisioningPersistenceTests
             second.UserAccount,
             second.Director,
             second.Operation,
+            ActorId,
+            "trace-second",
             CancellationToken.None);
 
         Assert.Equal(
             DirectorProvisioningPersistenceOutcome.DirectorAlreadyExists,
             result.Outcome);
         Assert.Equal(1, await context.Directors.CountAsync());
+        Assert.Equal(1, await context.AuditLogs.CountAsync());
     }
 
     [PostgreSqlFact]
@@ -146,6 +188,8 @@ public sealed class DirectorProvisioningPersistenceTests
             input.UserAccount,
             input.Director,
             input.Operation,
+            ActorId,
+            CorrelationId,
             CancellationToken.None);
 
         Assert.Equal(
@@ -189,11 +233,15 @@ public sealed class DirectorProvisioningPersistenceTests
                 first.UserAccount,
                 first.Director,
                 first.Operation,
+                ActorId,
+                CorrelationId,
                 CancellationToken.None),
             new DirectorProvisioningRepository(secondContext).ProvisionAsync(
                 second.UserAccount,
                 second.Director,
                 second.Operation,
+                ActorId,
+                "trace-concurrent",
                 CancellationToken.None));
 
         Assert.Contains(
@@ -206,6 +254,7 @@ public sealed class DirectorProvisioningPersistenceTests
         Assert.Equal(1, await verificationContext.Directors.CountAsync());
         Assert.Equal(1, await verificationContext.UserAccounts.CountAsync());
         Assert.Equal(1, await verificationContext.DirectorProvisioningOperations.CountAsync());
+        Assert.Equal(1, await verificationContext.AuditLogs.CountAsync());
     }
 
     [PostgreSqlFact]

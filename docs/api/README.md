@@ -43,3 +43,15 @@ JWT принимается только с RS256, известным `kid`, на
 - `director.invalid_full_name`, `auth.invalid_login`, `director.invalid_initial_credential` — неверные поля запроса.
 
 Открытая начальная тайна, JWT, закрытый ключ Control и HMAC-ключ fingerprint не должны попадать в логи, telemetry или committed configuration.
+
+## Техническое состояние
+
+```http
+GET /health/live
+GET /health/ready
+GET /health
+```
+
+`/health/live` подтверждает работу процесса и не зависит от PostgreSQL. `/health/ready` и совместимый `/health` возвращают `200 OK`, только когда PostgreSQL доступна; иначе возвращается `503 Service Unavailable`.
+
+Ответ содержит `status`, общую длительность и массив `checks` с именем, статусом и длительностью каждой проверки. Исключения, строка подключения и иные внутренние детали не возвращаются. Эти endpoints не требуют аутентификации и исключены из OpenAPI.

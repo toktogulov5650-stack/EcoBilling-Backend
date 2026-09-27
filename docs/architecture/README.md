@@ -21,6 +21,9 @@ EcoBilling — модульный монолит одного округа с о
 - [ADR-0015: Reports как read-only проекция существующих данных](ADR-0015-reports-read-model-boundary.md)
 - [ADR-0016: граница выполнения фоновых заданий Worker](ADR-0016-worker-execution-boundary.md)
 - [ADR-0017: внутренний контракт provisioning директора](ADR-0017-control-director-provisioning-contract.md)
+- [ADR-0018: аудит и инфраструктурная основа Outbox](ADR-0018-audit-and-outbox-foundation.md)
+- [ADR-0019: фундамент наблюдаемости](ADR-0019-observability-foundation.md)
+- [ADR-0020: контейнерное развёртывание одного округа](ADR-0020-container-deployment-boundary.md)
 - [Реестр открытых решений](open-decisions.md)
 
 Фактические `ProjectReference` проверяются проектом `EcoBilling.ArchitectureTests` непосредственно по `EcoBilling.slnx` и файлам проектов.

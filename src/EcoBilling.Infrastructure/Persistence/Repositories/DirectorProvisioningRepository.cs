@@ -1,3 +1,5 @@
+using System.Text.Json;
+using EcoBilling.Infrastructure.Auditing;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Identity.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +15,15 @@ public sealed class DirectorProvisioningRepository(EcoBillingDbContext dbContext
         UserAccount userAccount,
         DirectorProfile director,
         DirectorProvisioningOperation operation,
+        string actorId,
+        string correlationId,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(userAccount);
         ArgumentNullException.ThrowIfNull(director);
         ArgumentNullException.ThrowIfNull(operation);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
 
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             cancellationToken);
@@ -67,6 +73,13 @@ public sealed class DirectorProvisioningRepository(EcoBillingDbContext dbContext
         dbContext.UserAccounts.Add(userAccount);
         dbContext.Directors.Add(director);
         dbContext.DirectorProvisioningOperations.Add(operation);
+        dbContext.AuditLogs.Add(
+            CreateProvisioningAudit(
+                userAccount,
+                director,
+                operation,
+                actorId,
+                correlationId));
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -75,4 +88,28 @@ public sealed class DirectorProvisioningRepository(EcoBillingDbContext dbContext
             director.Id,
             operation.Id);
     }
+
+    private static AuditLog CreateProvisioningAudit(
+        UserAccount userAccount,
+        DirectorProfile director,
+        DirectorProvisioningOperation operation,
+        string actorId,
+        string correlationId) =>
+        new(
+            Guid.NewGuid(),
+            "InternalService",
+            actorId,
+            "identity.director.provisioned",
+            "Director",
+            director.Id.Value.ToString("D"),
+            beforeData: null,
+            JsonSerializer.Serialize(
+                new
+                {
+                    directorId = director.Id.Value,
+                    userId = userAccount.Id.Value,
+                    operationId = operation.Id.Value
+                }),
+            correlationId,
+            operation.CreatedAt);
 }

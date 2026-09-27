@@ -191,6 +191,45 @@ Reports не создаёт отдельную schema, таблицу или м�
 
 Финансовые суммы, задолженность и показатели работы контроллеров не вычисляются до утверждения соответствующих правил. Для тяжёлых отчётов в будущем должен использоваться Worker, а не длительный синхронный HTTP-запрос.
 
+## Audit и Outbox
+
+Миграция AddAuditAndOutbox добавляет две технические таблицы в schema infrastructure.
+
+infrastructure.audit_logs:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| id | uuid | primary key |
+| actor_type | varchar(64) | NOT NULL |
+| actor_id | varchar(200) | NOT NULL |
+| action | varchar(200) | NOT NULL |
+| entity_type | varchar(200) | NOT NULL |
+| entity_id | varchar(200) | NOT NULL |
+| before_data | jsonb | nullable |
+| after_data | jsonb | nullable |
+| correlation_id | varchar(200) | NOT NULL |
+| created_at | timestamp with time zone | NOT NULL, UTC |
+
+EcoBillingDbContext отклоняет tracked update/delete AuditLog. Production-роль базы
+дополнительно должна получить только необходимые права; срок хранения аудита пока не
+утверждён.
+
+infrastructure.outbox_messages:
+
+| Столбец | PostgreSQL | Ограничение |
+|---|---|---|
+| id | uuid | primary key |
+| type | varchar(200) | NOT NULL |
+| payload | jsonb | NOT NULL |
+| occurred_at | timestamp with time zone | NOT NULL, UTC |
+| processed_at | timestamp with time zone | nullable |
+| retry_count | integer | NOT NULL, не меньше нуля |
+| last_error | varchar(2000) | nullable |
+
+Индекс (processed_at, occurred_at) поддерживает выборку ожидающих сообщений. Реальные
+producer, publisher, lease/locking, retry/backoff и dead-letter не фиксируются до появления
+утверждённой внешней интеграции. Provisioning директора Outbox-сообщение не создаёт.
+
 ## Интеграционные тесты
 
 Тесты требуют настоящую PostgreSQL и роль с правами `CREATE DATABASE`. Каждый тест создаёт отдельную базу `ecobilling_test_<guid>` и удаляет её после выполнения.

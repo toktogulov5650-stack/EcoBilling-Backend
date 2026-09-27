@@ -2,6 +2,11 @@ namespace EcoBilling.ArchitectureTests.ProjectDependencies;
 
 internal static class RepositoryPaths
 {
+    public static string RepositoryRoot =>
+        Path.GetDirectoryName(SolutionFile)
+        ?? throw new DirectoryNotFoundException(
+            "Could not determine the EcoBilling repository root.");
+
     public static string SolutionFile
     {
         get

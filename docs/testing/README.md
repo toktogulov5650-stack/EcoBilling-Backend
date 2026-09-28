@@ -5,6 +5,9 @@
 - Integration — база данных и интеграции.
 - Contract/integration проверки внутреннего API запускают настоящий ASP.NET Core pipeline и PostgreSQL: RS256 JWT, обязательный `kid` и scope, одноразовый `jti`, RFC 7807 и идемпотентный повтор.
 - User-auth integration-тесты проверяют настоящий HTTP pipeline и PostgreSQL: login, подписанный access JWT, hash-only refresh storage, rotation, replay-family revoke, logout, persisted lockout и замену начальной тайны.
+- Controller-creation тесты проверяют role policy, RFC 7807, HMAC fingerprint, атомарную persistence, replay/conflict, конкурентный запрос и полный E2E: provisioning Director → login → создание Controller → password setup → login Controller.
+- Resident-creation тесты проверяют Director policy, RFC 7807, HMAC fingerprint, атомарные Identity/Profile/Address/Account/Operation/Audit, replay/conflict, конкурентный запрос, ограничение один Account на Resident и полный E2E до входа Resident по лицевому счёту.
+- Resident password-reset тесты проверяют Director policy, идемпотентность, снятие lockout, атомарный отзыв всех refresh-сессий, отсутствие credential в Audit и E2E: старый пароль/refresh запрещены, новый пароль работает.
 - Integration-тесты Audit/Outbox проверяют миграцию на настоящей PostgreSQL, JSONB, UTC-время, append-only защиту аудита, переходы Outbox и отсутствие дубликата аудита при replay/concurrency.
 - Integration-тесты observability проверяют независимость liveness от PostgreSQL, readiness failure без утечки строки подключения, correlation ID и валидацию OTLP endpoint.
 - Unit-тесты Worker дополнительно проверяют activity и безопасные outcome tags фонового задания.

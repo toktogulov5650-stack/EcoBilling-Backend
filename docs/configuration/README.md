@@ -51,6 +51,8 @@ Worker не применяет миграции и пока не регистр�
 | Переменная | Назначение |
 |---|---|
 | `ECOBILLING_DESIGN_TIME_CONNECTION` | Строка подключения для `dotnet ef`. Пользователь должен иметь права на изменение схемы целевой базы. |
+
+Для локального запуска API можно скопировать `src/EcoBilling.Api/appsettings.Local.example.json` в `src/EcoBilling.Api/appsettings.Local.json` и заменить заглушки. `appsettings.Local.json` игнорируется Git и загружается только при `LocalConfiguration__Enabled=true` или при подключённом debugger. Штатные профили `http` и `https` включают этот локальный режим и открывают Swagger. Переменные окружения и secret manager остаются обязательным способом конфигурации production.
 | `ECOBILLING_TEST_POSTGRES_CONNECTION` | Административная строка тестовой PostgreSQL. Тесты создают и удаляют отдельные базы, поэтому нужны права `CREATE DATABASE`. |
 
 Production credentials нельзя использовать для локальных или CI-тестов.

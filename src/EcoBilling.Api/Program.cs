@@ -1,17 +1,41 @@
+using System.Diagnostics;
 using EcoBilling.Api.Configuration;
 using EcoBilling.Api.Endpoints;
 using EcoBilling.Api.InternalEndpoints;
 using EcoBilling.Api.Middleware;
 using EcoBilling.Infrastructure;
 using EcoBilling.Infrastructure.Observability;
+using EcoBilling.Modules.Controllers.Features.CreateController;
 using EcoBilling.Modules.Identity.Application.ProvisionDirector;
+using EcoBilling.Modules.Residents.Features.CreateResident;
+using EcoBilling.Modules.Residents.Features.ResetPassword;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var useLocalConfiguration =
+    builder.Configuration.GetValue<bool>("LocalConfiguration:Enabled") ||
+    Debugger.IsAttached;
+if (useLocalConfiguration)
+{
+    builder.Configuration.AddJsonFile(
+        "appsettings.Local.json",
+        optional: true,
+        reloadOnChange: true);
+}
+
 builder.Logging.AddEcoBillingStructuredLogging(builder.Configuration);
 
 var connectionString = builder.Configuration.GetConnectionString("EcoBilling");
+if (string.IsNullOrWhiteSpace(connectionString) &&
+    useLocalConfiguration)
+{
+    builder.Configuration.AddUserSecrets<Program>(
+        optional: true,
+        reloadOnChange: true);
+    connectionString = builder.Configuration.GetConnectionString("EcoBilling");
+}
+
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException(
@@ -89,6 +113,9 @@ builder.Services.AddInternalServiceAuthentication(builder.Configuration);
 builder.Services.AddUserAuthentication(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ProvisionDirectorHandler>();
+builder.Services.AddScoped<CreateControllerHandler>();
+builder.Services.AddScoped<CreateResidentHandler>();
+builder.Services.AddScoped<ResetResidentPasswordHandler>();
 
 var app = builder.Build();
 
@@ -119,6 +146,8 @@ app.MapEcoBillingHealthEndpoints();
 
 app.MapDirectorProvisioningEndpoints();
 app.MapUserAuthenticationEndpoints();
+app.MapControllerManagementEndpoints();
+app.MapResidentManagementEndpoints();
 
 app.Run();
 

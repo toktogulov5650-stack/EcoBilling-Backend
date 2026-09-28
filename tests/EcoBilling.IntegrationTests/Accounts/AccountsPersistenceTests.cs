@@ -102,6 +102,24 @@ public sealed class AccountsPersistenceTests
     }
 
     [PostgreSqlFact]
+    public async Task SecondAccountForSameResident_IsRejectedByDatabase()
+    {
+        await using var database = await CreateMigratedDatabaseAsync();
+        var identity = CreateResidentIdentity("AB-123");
+        var resident = CreateResident(identity);
+        var firstAddress = CreateAddress();
+        var secondAddress = CreateAddress();
+        await using var context = database.CreateContext();
+        context.UserAccounts.Add(identity);
+        context.Residents.Add(resident);
+        context.Addresses.AddRange(firstAddress, secondAddress);
+        context.Accounts.Add(CreateAccount(resident, firstAddress, "AB-123"));
+        context.Accounts.Add(CreateAccount(resident, secondAddress, "AB-124"));
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+    }
+
+    [PostgreSqlFact]
     public async Task MissingResident_IsRejectedByForeignKey()
     {
         await using var database = await CreateMigratedDatabaseAsync();

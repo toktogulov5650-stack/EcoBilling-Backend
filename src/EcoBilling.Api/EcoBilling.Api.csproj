@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-EcoBilling.Api-8cce40a9-631d-4cb2-ae15-f56bbb1be59a</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

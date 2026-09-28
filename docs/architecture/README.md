@@ -29,6 +29,8 @@ EcoBilling — модульный монолит одного округа с о
 - [ADR-0023: финальная документационная основа](ADR-0023-final-documentation-baseline.md)
 - [ADR-0024: финальная проверка безопасности и готовности](ADR-0024-final-security-readiness-review.md)
 - [ADR-0025: версионируемая политика продукта](ADR-0025-versioned-product-policy.md)
+- [ADR-0026: создание Resident и кардинальность Account в v1](ADR-0026-resident-account-v1-cardinality.md)
+- [ADR-0027: сброс пароля Resident директором](ADR-0027-resident-password-reset.md)
 - [Реестр открытых решений](open-decisions.md)
 
 Фактические `ProjectReference` проверяются проектом `EcoBilling.ArchitectureTests` непосредственно по `EcoBilling.slnx` и файлам проектов.

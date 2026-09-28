@@ -9,6 +9,9 @@
 | `POST /api/v1/auth/refresh` | Anonymous, refresh token в body | Одноразовая ротация refresh token и выпуск нового access token. |
 | `POST /api/v1/auth/revoke` | Anonymous, refresh token в body | Идемпотентный отзыв всей token family. |
 | `POST /api/v1/auth/setup-password` | Anonymous, начальная тайна в body | Однократная замена начальной тайны Director/Controller. |
+| `POST /api/v1/controllers` | Director access JWT | Идемпотентное создание Controller с начальной тайной. |
+| `POST /api/v1/residents` | Director access JWT | Идемпотентное атомарное создание Resident, Address и Account. |
+| `PUT /api/v1/residents/{residentId}/password` | Director access JWT | Идемпотентный сброс пароля Resident и отзыв refresh-сессий. |
 | `GET /health/live` | Anonymous | Liveness процесса без зависимости от PostgreSQL. |
 | `GET /health/ready` | Anonymous | Readiness процесса и PostgreSQL. |
 | `GET /health` | Anonymous | Совместимый alias readiness. |
@@ -26,6 +29,77 @@ Refresh token хранится только как SHA-256 hash. `POST /api/v1/a
 Director и Controller, созданные с начальной тайной, сначала вызывают `POST /api/v1/auth/setup-password`. Новый пароль содержит 12–256 символов и не может совпадать с начальной тайной. До успешной замены login возвращает `403 auth.password_setup_required`. Resident не использует self-service setup: его пароль устанавливает или сбрасывает Director.
 
 Access JWT подписывается HS256, содержит `kid`, `sub`, `jti`, `iat`, `exp` и `role`, проверяется по точным issuer/audience и не содержит refresh token или пароль. Raw access/refresh tokens и credentials не журналируются.
+
+## Создание контроллера директором
+
+```http
+POST /api/v1/controllers
+Authorization: Bearer <director-access-token>
+Idempotency-Key: <opaque-operation-key>
+X-Correlation-Id: <optional-trace-id>
+Content-Type: application/json
+```
+
+```json
+{
+  "fullName": "Grace Hopper",
+  "email": "controller@example.com",
+  "initialCredential": "<high-entropy-one-time-credential>"
+}
+```
+
+Успешный ответ `201 Created` содержит `controllerId`, `operationId` и `status: "created"`. Заголовок `Idempotency-Replayed` равен `false` для первого выполнения и `true` для повтора того же запроса. Повтор с тем же ключом и другим телом получает `409 controller.creation.idempotency_conflict`; существующий email — `409 controller.email_already_exists`.
+
+Начальная тайна содержит 32–256 символов без пробелов, хешируется до записи и не возвращается. Созданный Controller обязан однократно заменить её через `POST /api/v1/auth/setup-password`; обычный login до замены возвращает `403 auth.password_setup_required`. Identity, профиль Controller, idempotency operation и audit создаются одной транзакцией.
+
+## Создание жителя директором
+
+```http
+POST /api/v1/residents
+Authorization: Bearer <director-access-token>
+Idempotency-Key: <opaque-operation-key>
+X-Correlation-Id: <optional-trace-id>
+Content-Type: application/json
+```
+
+```json
+{
+  "fullName": "Ada Lovelace",
+  "accountNumber": "AB-000001",
+  "password": "<resident-password>",
+  "address": {
+    "locality": "Bishkek",
+    "street": "Chuy Avenue",
+    "house": "42",
+    "building": "2",
+    "apartment": "17"
+  }
+}
+```
+
+Успешный `201 Created` содержит `residentId`, `accountId`, `addressId`, `operationId` и `status: "created"`. `Idempotency-Replayed` показывает первое выполнение или безопасный повтор. Тот же ключ с другим запросом возвращает `409 resident.creation.idempotency_conflict`, существующий номер — `409 resident.account_number_already_exists`.
+
+Identity роли Resident, профиль, Address, Account, operation и Audit записываются одной транзакцией. Номер Account одновременно является нормализованным логином Resident. Пароль содержит 12–256 символов, немедленно хешируется и не возвращается; Resident сразу входит с `loginType: "accountNumber"` и не использует self-service setup.
+
+## Сброс пароля жителя директором
+
+```http
+PUT /api/v1/residents/{residentId}/password
+Authorization: Bearer <director-access-token>
+Idempotency-Key: <opaque-operation-key>
+X-Correlation-Id: <optional-trace-id>
+Content-Type: application/json
+```
+
+```json
+{
+  "newPassword": "<new-resident-password>"
+}
+```
+
+Успешный `200 OK` содержит `operationId` и `status: "reset"`; заголовок `Idempotency-Replayed` показывает безопасный повтор. Отсутствующий Resident возвращает `404 resident.not_found`, а повтор ключа с другим запросом — `409 resident.password_reset.idempotency_conflict`.
+
+Новый hash, снятие lockout, отзыв всех refresh-сессий, operation и Audit сохраняются одной транзакцией. Старый пароль и старые refresh tokens перестают работать. Уже выпущенный access JWT остаётся действительным максимум до своего настроенного срока (по умолчанию 15 минут), поскольку текущий access token является stateless.
 
 ## Внутреннее создание директора
 

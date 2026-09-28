@@ -50,6 +50,10 @@ Rollback первой миграции удаляет таблицу и созд
 
 Rollback миграции удаляет таблицу и schema `residents`, не затрагивая Identity.
 
+Миграция `AddResidentCreation` добавляет `residents.resident_creation_operations` с уникальными `idempotency_key`, `resident_id`, `account_id` и `address_id`, HMAC-SHA-256 fingerprint и UTC-временем. Операция ссылается на Resident, Account и Address через `RESTRICT`. Identity, Resident, Address, Account, operation и Audit создаются одной транзакцией.
+
+Миграция `AddResidentPasswordReset` добавляет `residents.resident_password_reset_operations` с уникальным `idempotency_key`, HMAC-SHA-256 fingerprint, ссылкой на Resident и UTC-временем. Смена password hash, очистка lockout, отзыв refresh-сессий, operation и Audit выполняются одной транзакцией; открытый пароль и hash в operation/Audit отсутствуют.
+
 ## Controllers
 
 Миграция `AddControllersProfile` создаёт schema `controllers` и таблицу `controllers.controllers`:
@@ -63,6 +67,8 @@ Rollback миграции удаляет таблицу и schema `residents`, �
 
 Rollback миграции удаляет таблицу и schema `controllers`, не затрагивая Identity или Residents.
 
+Миграция `AddControllerCreation` добавляет `controllers.controller_creation_operations` с уникальными `idempotency_key` и `controller_id`, HMAC-SHA-256 request fingerprint и UTC-временем создания. Запись ссылается на `controllers.controllers` через `RESTRICT`. Она обеспечивает безопасный повтор Director-команды без хранения начальной тайны; создание `identity.user_accounts`, Controller, operation и Audit выполняется одной транзакцией.
+
 ## Accounts
 
 Миграция `AddAccounts` создаёт schema `accounts` и первоначальную таблицу `accounts.accounts`:
@@ -74,7 +80,7 @@ Rollback миграции удаляет таблицу и schema `controllers`,
 | `account_number` | `text` | NOT NULL, unique, хранится в канонической форме |
 | `created_at` | `timestamp with time zone` | NOT NULL, UTC |
 
-Миграция `AddAddresses` позднее добавляет обязательный `address_id` и индекс `ix_accounts_address_id`. Неуникальные индексы связей не фиксируют неподтверждённую кардинальность. Поля Balance, долга и переплаты отсутствуют до утверждения финансовых правил.
+Миграция `AddAddresses` позднее добавляет обязательный `address_id` и индекс `ix_accounts_address_id`. Миграция `AddResidentCreation` заменяет прежний индекс Resident на уникальный `ux_accounts_resident_id`, фиксируя правило v1 «один Resident — один Account». Поля Balance, долга и переплаты отсутствуют до реализации утверждённой финансовой политики.
 
 Rollback миграции удаляет таблицу и schema `accounts`, не затрагивая Identity, Residents или Controllers.
 

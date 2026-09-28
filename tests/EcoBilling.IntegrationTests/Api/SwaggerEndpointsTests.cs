@@ -31,6 +31,20 @@ public sealed class SwaggerEndpointsTests
             document.RootElement
                 .GetProperty("paths")
                 .TryGetProperty("/api/v1/auth/login", out _));
+        Assert.True(
+            document.RootElement
+                .GetProperty("paths")
+                .TryGetProperty("/api/v1/controllers", out _));
+        Assert.True(
+            document.RootElement
+                .GetProperty("paths")
+                .TryGetProperty("/api/v1/residents", out _));
+        Assert.True(
+            document.RootElement
+                .GetProperty("paths")
+                .TryGetProperty(
+                    "/api/v1/residents/{residentId}/password",
+                    out _));
 
         var bearer = document.RootElement
             .GetProperty("components")

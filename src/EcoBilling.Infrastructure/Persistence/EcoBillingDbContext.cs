@@ -28,7 +28,16 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
 
     public DbSet<Resident> Residents => Set<Resident>();
 
+    public DbSet<ResidentCreationOperation> ResidentCreationOperations =>
+        Set<ResidentCreationOperation>();
+
+    public DbSet<ResidentPasswordResetOperation> ResidentPasswordResetOperations =>
+        Set<ResidentPasswordResetOperation>();
+
     public DbSet<Controller> Controllers => Set<Controller>();
+
+    public DbSet<ControllerCreationOperation> ControllerCreationOperations =>
+        Set<ControllerCreationOperation>();
 
     public DbSet<Account> Accounts => Set<Account>();
 

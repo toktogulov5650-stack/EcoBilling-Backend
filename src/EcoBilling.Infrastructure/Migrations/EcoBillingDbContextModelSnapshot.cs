@@ -197,7 +197,8 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasDatabaseName("ux_accounts_account_number");
 
                     b.HasIndex("ResidentId")
-                        .HasDatabaseName("ix_accounts_resident_id");
+                        .IsUnique()
+                        .HasDatabaseName("ux_accounts_resident_id");
 
                     b.ToTable("accounts", "accounts");
                 });
@@ -318,6 +319,47 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasDatabaseName("ux_controllers_user_id");
 
                     b.ToTable("controllers", "controllers");
+                });
+
+            modelBuilder.Entity("EcoBilling.Modules.Controllers.Domain.ControllerCreationOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ControllerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("controller_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("request_fingerprint")
+                        .IsFixedLength();
+
+                    b.HasKey("Id")
+                        .HasName("pk_controller_creation_operations");
+
+                    b.HasIndex("ControllerId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_controller_creation_operations_controller_id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_controller_creation_operations_idempotency_key");
+
+                    b.ToTable("controller_creation_operations", "controllers");
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Identity.Domain.DirectorProfile", b =>
@@ -658,6 +700,103 @@ namespace EcoBilling.Infrastructure.Migrations
                     b.ToTable("residents", "residents");
                 });
 
+            modelBuilder.Entity("EcoBilling.Modules.Residents.Domain.ResidentCreationOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("account_id");
+
+                    b.Property<Guid>("AddressId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("address_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("request_fingerprint")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ResidentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resident_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_resident_creation_operations");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_resident_creation_operations_account_id");
+
+                    b.HasIndex("AddressId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_resident_creation_operations_address_id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_resident_creation_operations_idempotency_key");
+
+                    b.HasIndex("ResidentId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_resident_creation_operations_resident_id");
+
+                    b.ToTable("resident_creation_operations", "residents");
+                });
+
+            modelBuilder.Entity("EcoBilling.Modules.Residents.Domain.ResidentPasswordResetOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("request_fingerprint")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("ResidentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resident_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_resident_password_reset_operations");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_resident_password_reset_operations_idempotency_key");
+
+                    b.HasIndex("ResidentId")
+                        .HasDatabaseName("ix_resident_password_reset_operations_resident_id");
+
+                    b.ToTable("resident_password_reset_operations", "residents");
+                });
+
             modelBuilder.Entity("EcoBilling.Modules.Tariffs.Domain.Tariff", b =>
                 {
                     b.Property<Guid>("Id")
@@ -761,6 +900,16 @@ namespace EcoBilling.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_controllers_user_accounts_user_id");
+                });
+
+            modelBuilder.Entity("EcoBilling.Modules.Controllers.Domain.ControllerCreationOperation", b =>
+                {
+                    b.HasOne("EcoBilling.Modules.Controllers.Domain.Controller", null)
+                        .WithOne()
+                        .HasForeignKey("EcoBilling.Modules.Controllers.Domain.ControllerCreationOperation", "ControllerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_controller_creation_operations_controllers_controller_id");
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Identity.Domain.DirectorProfile", b =>
@@ -869,6 +1018,40 @@ namespace EcoBilling.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_residents_user_accounts_user_id");
+                });
+
+            modelBuilder.Entity("EcoBilling.Modules.Residents.Domain.ResidentCreationOperation", b =>
+                {
+                    b.HasOne("EcoBilling.Modules.Accounts.Domain.Account", null)
+                        .WithOne()
+                        .HasForeignKey("EcoBilling.Modules.Residents.Domain.ResidentCreationOperation", "AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_resident_creation_operations_accounts_account_id");
+
+                    b.HasOne("EcoBilling.Modules.Accounts.Domain.Address", null)
+                        .WithOne()
+                        .HasForeignKey("EcoBilling.Modules.Residents.Domain.ResidentCreationOperation", "AddressId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_resident_creation_operations_addresses_address_id");
+
+                    b.HasOne("EcoBilling.Modules.Residents.Domain.Resident", null)
+                        .WithOne()
+                        .HasForeignKey("EcoBilling.Modules.Residents.Domain.ResidentCreationOperation", "ResidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_resident_creation_operations_residents_resident_id");
+                });
+
+            modelBuilder.Entity("EcoBilling.Modules.Residents.Domain.ResidentPasswordResetOperation", b =>
+                {
+                    b.HasOne("EcoBilling.Modules.Residents.Domain.Resident", null)
+                        .WithMany()
+                        .HasForeignKey("ResidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_resident_password_reset_operations_residents_resident_id");
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Tariffs.Domain.TariffVersion", b =>

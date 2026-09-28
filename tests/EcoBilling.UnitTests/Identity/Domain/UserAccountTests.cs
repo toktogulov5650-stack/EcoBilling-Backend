@@ -161,6 +161,39 @@ public sealed class UserAccountTests
     }
 
     [Fact]
+    public void ResetResidentPassword_ReplacesHashAndClearsLockout()
+    {
+        var account = CreateAccount();
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            account.RecordFailedLogin(CreatedAt, 5, TimeSpan.FromMinutes(15));
+        }
+
+        account.ResetResidentPassword("new-stored-hash");
+
+        Assert.Equal("new-stored-hash", account.PasswordHash);
+        Assert.False(account.RequiresPasswordChange);
+        Assert.Equal(0, account.FailedLoginAttempts);
+        Assert.Null(account.LockoutEnd);
+    }
+
+    [Theory]
+    [InlineData(UserRole.Controller)]
+    [InlineData(UserRole.Director)]
+    public void ResetResidentPassword_ForStaffRole_IsRejected(UserRole role)
+    {
+        var account = UserAccount.Create(
+            new UserId(Guid.NewGuid()),
+            CreateLogin(LoginType.Email, $"{role.ToString().ToLowerInvariant()}@example.com"),
+            "stored-hash",
+            role,
+            CreatedAt).Value;
+
+        Assert.Throws<InvalidOperationException>(
+            () => account.ResetResidentPassword("new-stored-hash"));
+    }
+
+    [Fact]
     public void ToString_DoesNotExposePasswordHash()
     {
         var account = UserAccount.Create(

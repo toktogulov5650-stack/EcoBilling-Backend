@@ -53,7 +53,8 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
             .HasDatabaseName("ux_accounts_account_number");
 
         builder.HasIndex(account => account.ResidentId)
-            .HasDatabaseName("ix_accounts_resident_id");
+            .IsUnique()
+            .HasDatabaseName("ux_accounts_resident_id");
 
         builder.HasIndex(account => account.AddressId)
             .HasDatabaseName("ix_accounts_address_id");

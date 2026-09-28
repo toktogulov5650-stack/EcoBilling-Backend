@@ -17,7 +17,10 @@ public sealed class PublicHttpBoundaryJourneyTests
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
             "/api/v1/auth/revoke",
-            "/api/v1/auth/setup-password"
+            "/api/v1/auth/setup-password",
+            "/api/v1/controllers",
+            "/api/v1/residents",
+            "/api/v1/residents/{residentId:guid}/password"
         };
         var actualPublicRoutes = host.RoutePatterns
             .Where(route =>

@@ -149,4 +149,17 @@ public sealed class UserAccount
         RequiresPasswordChange = false;
         RecordSuccessfulLogin();
     }
+
+    public void ResetResidentPassword(string? passwordHash)
+    {
+        if (Role is not UserRole.Resident)
+        {
+            throw new InvalidOperationException(
+                "Only a Resident password can be reset through this operation.");
+        }
+
+        ReplacePasswordHash(passwordHash);
+        RequiresPasswordChange = false;
+        RecordSuccessfulLogin();
+    }
 }

@@ -1,4 +1,5 @@
 using EcoBilling.Modules.Identity.Application.Abstractions;
+using EcoBilling.Modules.Identity.Application.Credentials;
 using EcoBilling.Modules.Identity.Domain;
 using EcoBilling.SharedKernel.Results;
 
@@ -6,9 +7,6 @@ namespace EcoBilling.Modules.Identity.Application.ProvisionDirector;
 
 public sealed class ProvisionDirectorHandler
 {
-    public const int MinimumInitialCredentialLength = 32;
-    public const int MaximumInitialCredentialLength = 256;
-
     private readonly IDirectorProvisioningRepository repository;
     private readonly IDirectorProvisioningRequestFingerprinter requestFingerprinter;
     private readonly IPasswordHasher passwordHasher;
@@ -46,10 +44,7 @@ public sealed class ProvisionDirectorHandler
                 DirectorProvisioningErrors.InvalidIdempotencyKey);
         }
 
-        if (string.IsNullOrWhiteSpace(command.InitialCredential) ||
-            command.InitialCredential.Length < MinimumInitialCredentialLength ||
-            command.InitialCredential.Length > MaximumInitialCredentialLength ||
-            command.InitialCredential.Any(char.IsWhiteSpace))
+        if (!InitialCredentialPolicy.IsValid(command.InitialCredential))
         {
             return Result<ProvisionDirectorResult>.Failure(
                 DirectorProvisioningErrors.InvalidInitialCredential);
@@ -65,7 +60,7 @@ public sealed class ProvisionDirectorHandler
         var userAccount = UserAccount.Create(
             new UserId(Guid.NewGuid()),
             loginIdentity.Value,
-            passwordHasher.Hash(command.InitialCredential),
+            passwordHasher.Hash(command.InitialCredential!),
             UserRole.Director,
             createdAt,
             requiresPasswordChange: true);
@@ -90,7 +85,7 @@ public sealed class ProvisionDirectorHandler
             requestFingerprinter.Create(
                 director.Value.FullName,
                 loginIdentity.Value.NormalizedValue,
-                command.InitialCredential),
+                command.InitialCredential!),
             director.Value.Id,
             createdAt);
         if (operation.IsFailure)

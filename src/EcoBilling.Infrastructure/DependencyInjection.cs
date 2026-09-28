@@ -64,7 +64,10 @@ public static class DependencyInjection
         services.AddScoped<IRefreshSessionRepository, RefreshSessionRepository>();
         services.AddScoped<IInternalServiceTokenReplayStore, InternalServiceTokenReplayStore>();
         services.AddScoped<IResidentRepository, ResidentRepository>();
+        services.AddScoped<IResidentCreationRepository, ResidentCreationRepository>();
+        services.AddScoped<IResidentPasswordResetRepository, ResidentPasswordResetRepository>();
         services.AddScoped<IControllerRepository, ControllerRepository>();
+        services.AddScoped<IControllerCreationRepository, ControllerCreationRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IMeterRepository, MeterRepository>();
@@ -89,6 +92,12 @@ public static class DependencyInjection
 
         services.AddSingleton<IDirectorProvisioningRequestFingerprinter>(
             new DirectorProvisioningRequestFingerprinter(requestFingerprintKey));
+        services.AddSingleton<IControllerCreationRequestFingerprinter>(
+            new ControllerCreationRequestFingerprinter(requestFingerprintKey));
+        services.AddSingleton<IResidentCreationRequestFingerprinter>(
+            new ResidentCreationRequestFingerprinter(requestFingerprintKey));
+        services.AddSingleton<IResidentPasswordResetRequestFingerprinter>(
+            new ResidentPasswordResetRequestFingerprinter(requestFingerprintKey));
 
         return services;
     }

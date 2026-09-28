@@ -24,6 +24,10 @@ EcoBilling — модульный монолит одного округа с о
 - [ADR-0018: аудит и инфраструктурная основа Outbox](ADR-0018-audit-and-outbox-foundation.md)
 - [ADR-0019: фундамент наблюдаемости](ADR-0019-observability-foundation.md)
 - [ADR-0020: контейнерное развёртывание одного округа](ADR-0020-container-deployment-boundary.md)
+- [ADR-0021: обязательный CI-gate](ADR-0021-continuous-integration-gate.md)
+- [ADR-0022: граница End-to-End тестов](ADR-0022-end-to-end-test-boundary.md)
+- [ADR-0023: финальная документационная основа](ADR-0023-final-documentation-baseline.md)
+- [ADR-0024: финальная проверка безопасности и готовности](ADR-0024-final-security-readiness-review.md)
 - [Реестр открытых решений](open-decisions.md)
 
 Фактические `ProjectReference` проверяются проектом `EcoBilling.ArchitectureTests` непосредственно по `EcoBilling.slnx` и файлам проектов.

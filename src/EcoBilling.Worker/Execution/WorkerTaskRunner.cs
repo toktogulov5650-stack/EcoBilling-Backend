@@ -122,10 +122,10 @@ public sealed class WorkerTaskRunner
                                 ["error.type"] = exception.GetType().FullName
                             }));
                     logger.LogWarning(
-                        exception,
-                        "Worker task {WorkerTaskName} failed on attempt {WorkerTaskAttempt}; retrying after {WorkerTaskRetryDelay}",
+                        "Worker task {WorkerTaskName} failed on attempt {WorkerTaskAttempt} with {WorkerTaskErrorType}; retrying after {WorkerTaskRetryDelay}",
                         task.Name,
                         attempt,
+                        exception.GetType().FullName,
                         options.RetryDelay);
 
                     await Task.Delay(options.RetryDelay, timeProvider, cancellationToken);
@@ -143,10 +143,10 @@ public sealed class WorkerTaskRunner
                     activity?.SetTag("error.type", exception.GetType().FullName);
                     activity?.SetStatus(ActivityStatusCode.Error);
                     logger.LogError(
-                        exception,
-                        "Worker task {WorkerTaskName} failed after {WorkerTaskAttemptCount} attempt(s)",
+                        "Worker task {WorkerTaskName} failed after {WorkerTaskAttemptCount} attempt(s) with {WorkerTaskErrorType}",
                         task.Name,
-                        attempt);
+                        attempt,
+                        exception.GetType().FullName);
                     throw;
                 }
             }

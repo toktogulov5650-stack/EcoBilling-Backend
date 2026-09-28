@@ -2,6 +2,8 @@
 
 В этом файле перечислены решения, которые нельзя подменять значениями по умолчанию или неявными предположениями.
 
+Все строки ниже имеют статус «открыто». Владелец решения и целевая дата пока не назначены; это должно быть сделано владельцем продукта или эксплуатации до начала зависимого сценария. Для эксплуатационных решений, необходимых конкретному production-окружению, отсутствие владельца и даты блокирует release readiness. Закрытие строки требует ссылки на утверждённое business rule или ADR и даты решения.
+
 | Тема | Требуется определить | Этап до которого нужно решение |
 |---|---|---|
 | Пароли | Политика сложности, первичная установка, безопасный сброс и канал доставки | До сценариев создания и сброса аккаунтов |
@@ -25,6 +27,9 @@
 | Хранение данных | Сроки аудита, показаний, квитанций и персональных данных | Финальная схема БД |
 | Эксплуатация | Backup, restore, RPO, RTO и SLA | Production readiness |
 | Наблюдаемость | Telemetry backend, OTLP collector, sampling, сроки хранения, dashboards и alert thresholds | До production deployment |
+| Безопасность развёртывания | TLS termination, доверенные proxy и forwarded headers, network policies и внешний host allowlist | Production readiness |
+| Доступ PostgreSQL | Раздельные migration/runtime роли, минимальные grants, ротация и аварийный доступ | Production readiness |
+| Контейнерный supply chain | CVE threshold, immutable digest, SBOM/VEX, срок обновления и порядок risk acceptance | Production readiness |
 
 ## Принятые решения
 
@@ -47,3 +52,6 @@
 - AuditLog является append-only технической записью, provisioning директора аудируется атомарно без секретов и PII, а Outbox пока предоставляет только persistence-основу без фиктивного publisher — ADR-0018.
 - API и Worker используют JSON-логи и OpenTelemetry; API разделяет liveness/readiness, PostgreSQL участвует в readiness и traces, а OTLP включается конфигурацией — ADR-0019.
 - Контейнеры API и Worker запускаются non-root, PostgreSQL изолирована внутренней сетью, а отдельный одноразовый service применяет миграции до запуска приложений — ADR-0020.
+- Pull request, `main` и release проходят единый gate с restore, Release build/test, полной PostgreSQL-интеграцией и проверкой контейнерной сборки — ADR-0021.
+- E2E используют реальный HTTP pipeline и PostgreSQL только для существующих контрактов; не реализованные пользовательские пути отражаются в матрице покрытия без фиктивных endpoints — ADR-0022.
+- Финальная security/readiness проверка закрепляет audit зависимостей, SHA-pinning CI, host allowlist, безопасное логирование Worker и production NO-GO до закрытия эксплуатационных блокеров — ADR-0024.

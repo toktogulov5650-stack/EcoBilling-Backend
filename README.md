@@ -1,18 +1,24 @@
 # EcoBilling
 
-EcoBilling — основной backend системы учёта и оплаты воды. Каждый округ разворачивает отдельный экземпляр EcoBilling и отдельную PostgreSQL.
+EcoBilling — backend системы учёта и оплаты воды для одного округа. Каждый округ разворачивает отдельные экземпляры API, Worker и PostgreSQL.
 
-Центральная маршрутизация по коду округа относится к отдельному проекту `ecobilling-control` и не входит в этот репозиторий.
+Центральная маршрутизация по коду округа, системные администраторы и реестр округов относятся к отдельному проекту `ecobilling-control` и не входят в этот репозиторий.
 
-## Проекты
+## Текущий статус
 
-- `EcoBilling.Api` — публичные и внутренние HTTP endpoints.
-- `EcoBilling.Modules` — бизнес-модули и правила предметной области.
-- `EcoBilling.Infrastructure` — база данных, безопасность и внешние интеграции.
-- `EcoBilling.Worker` — фоновые задания, запускающие сценарии модулей.
+Репозиторий содержит проверенную основу модульного монолита, PostgreSQL persistence, защищённый внутренний provisioning первого директора, аудит, observability, контейнерный запуск, CI и E2E-тесты. HTTP-поверхность пока ограничена техническими health endpoints и `POST /internal/v1/directors`.
+
+Публичного пользовательского API, выпуска access token, создания жителей и контроллеров, назначений контроллеров, команд работы со счётчиками и показаниями, расчёта начислений, интеграции с платёжным провайдером и реальных фоновых заданий пока нет. Эти функции нельзя считать готовыми только по наличию доменных и persistence-моделей.
+
+Полная матрица реализованного и отложенного объёма находится в [статусе проекта](docs/project-status.md). Открытые бизнес-решения перечислены в [реестре решений](docs/architecture/open-decisions.md). [Финальная проверка безопасности](docs/security/README.md) завершена с решением **NO-GO** для production до закрытия перечисленных эксплуатационных и supply-chain блокеров.
+
+## Проекты и зависимости
+
+- `EcoBilling.Api` — HTTP composition root, middleware, аутентификация и endpoints.
+- `EcoBilling.Modules` — бизнес-модули, сценарии и контракты.
+- `EcoBilling.Infrastructure` — PostgreSQL, безопасность, аудит и технические адаптеры.
+- `EcoBilling.Worker` — composition root фонового выполнения без копирования бизнес-правил.
 - `EcoBilling.SharedKernel` — небольшие общие технические типы.
-
-## Зависимости
 
 ```text
 Api ─────┬─→ Infrastructure ─→ Modules ─→ SharedKernel
@@ -22,24 +28,55 @@ Worker ──┬─→ Infrastructure
          └─→ Modules
 ```
 
-## Команды
+Направления `ProjectReference` контролируются исполняемыми ArchitectureTests.
+
+## Требования
+
+- .NET SDK `10.0.401`, закреплённый в `global.json`;
+- Docker Engine или Docker Desktop с Docker Compose v2 для полного локального стека;
+- PowerShell для приведённых ниже примеров команд.
+
+## Быстрый запуск через Docker Compose
+
+Создайте локальную конфигурацию и замените все значения-заглушки:
 
 ```powershell
-dotnet restore EcoBilling.slnx
-dotnet build EcoBilling.slnx
-dotnet test EcoBilling.slnx
-dotnet run --project src/EcoBilling.Api/EcoBilling.Api.csproj
-docker compose --env-file deploy/.env -f deploy/compose.yml up --build --detach
+Copy-Item deploy/.env.example deploy/.env
+notepad deploy/.env
+docker compose --env-file deploy/.env --file deploy/compose.yml config --quiet
+docker compose --env-file deploy/.env --file deploy/compose.yml up --build --detach
+docker compose --env-file deploy/.env --file deploy/compose.yml ps
+Invoke-RestMethod http://localhost:8080/health/ready
 ```
 
-После запуска API доступны `/health/live` для liveness и `/health/ready` для readiness PostgreSQL. `/health` сохраняется как alias readiness.
+Пример публичного RSA-ключа позволяет запустить API, но соответствующий private key не хранится в репозитории. Для вызова внутреннего provisioning endpoint нужен EcoBilling.Control с согласованной парой ключей.
 
-## Статус
+Остановка сохраняет named volume PostgreSQL:
 
-Этап 17 добавил production-oriented Dockerfile для API и Worker, non-root/read-only runtime, обязательную внешнюю конфигурацию секретов, health checks и Compose-стек PostgreSQL → migrations → API/Worker. PostgreSQL не публикуется наружу, а production TLS остаётся обязанностью reverse proxy или ingress.
+```powershell
+docker compose --env-file deploy/.env --file deploy/compose.yml down
+```
 
-Этап 16 добавил структурированные JSON-логи, correlation/trace context, OpenTelemetry traces и metrics для API, PostgreSQL и Worker, а также раздельные liveness/readiness checks. OTLP-экспорт включается только конфигурацией; collector, dashboards и alerts будут определены при развёртывании.
+Подробности: [развёртывание](docs/deployment/README.md), [конфигурация](docs/configuration/README.md), [эксплуатационный runbook](docs/operations/README.md) и [security readiness](docs/security/README.md).
 
-Этап 15 добавил атомарный append-only аудит provisioning директора и persistence-основу Outbox. Реальные Outbox-события и фоновый dispatcher не создаются до утверждения внешнего контракта и политики обработки.
+## Сборка и тесты
 
-Созданы архитектурный каркас, примитивы `Error`/`Result`, исполняемые проверки графа зависимостей, Identity с PostgreSQL persistence, профили Resident и Controller, Account с обязательными связями с Resident и Address, базовые модели Meter и MeterReading, Tariff с неизменяемыми версиями ставок, минимальная запись Charge без формулы расчёта, подтверждённый Payment с idempotency key, read-only операционная сводка Reports, общий механизм выполнения Worker и защищённый идемпотентный контракт EcoBilling.Control → EcoBilling для первоначального директора. Пользовательская HTTP-аутентификация, завершение первичной установки пароля, создание жителей и контроллеров, назначения контроллеров, жизненный цикл счётчиков, сценарии внесения и исправления показаний, управление тарифами, финансовое состояние счёта, расчёт начислений, провайдерский платёжный workflow, финансовые отчёты и реальные фоновые задания будут проектироваться отдельными этапами после утверждения правил.
+```powershell
+dotnet restore EcoBilling.slnx -warnaserror
+dotnet build EcoBilling.slnx --configuration Release --no-restore
+dotnet test EcoBilling.slnx --configuration Release --no-build
+```
+
+Без `ECOBILLING_TEST_POSTGRES_CONNECTION` тесты, требующие PostgreSQL, явно пропускаются. Для полного прогона с отдельными временными базами используйте инструкцию [тестирования](docs/testing/README.md). CI выполняет полный набор с PostgreSQL и проверяет Docker Compose.
+
+## HTTP-поверхность
+
+- `GET /health/live` — liveness процесса;
+- `GET /health/ready` и `GET /health` — readiness с PostgreSQL;
+- `POST /internal/v1/directors` — защищённое идемпотентное создание первого директора.
+
+Точный контракт, требования JWT, ответы и ошибки описаны в [документации API](docs/api/README.md). OpenAPI доступен только в окружении `Development`; публичная регистрация отсутствует.
+
+## Документация
+
+Начальная точка — [docs/README.md](docs/README.md). Там собраны ссылки на архитектуру и ADR, бизнес-правила, схему PostgreSQL, конфигурацию, API, тестирование, развёртывание и эксплуатацию.

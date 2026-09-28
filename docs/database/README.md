@@ -30,6 +30,8 @@ dotnet ef database update --project src/EcoBilling.Infrastructure --startup-proj
 Строка подключения не должна попадать в исходный код, `appsettings`, логи или отчёты. Миграции не редактируются вручную без отдельного объяснения.
 Rollback первой миграции удаляет таблицу и созданную ею схему `identity`; повторное применение создаёт их заново.
 
+В контейнерном контуре миграции выполняет отдельный одноразовый service до старта API и Worker. Runtime-приложения схему автоматически не меняют. Для production пользователь migrations должен быть отделён от минимальной runtime-роли; конкретные роли и grant script ещё не зафиксированы. Порядок обновления и ограничения rollback описаны в [эксплуатационном runbook](../operations/README.md), а переменные подключения — в [справочнике конфигурации](../configuration/README.md).
+
 ## Residents
 
 Миграция `AddResidentsProfile` создаёт schema `residents` и таблицу `residents.residents`:

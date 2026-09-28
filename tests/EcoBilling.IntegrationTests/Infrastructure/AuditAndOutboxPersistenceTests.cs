@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EcoBilling.Infrastructure.Auditing;
 using EcoBilling.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
@@ -75,10 +76,10 @@ public sealed class AuditAndOutboxPersistenceTests
         var storedMessage = await context.OutboxMessages.SingleAsync();
 
         Assert.Equal(audit.Id, storedAudit.Id);
-        Assert.Equal("""{"entityId":"42"}""", storedAudit.AfterData);
+        AssertJsonEquivalent("""{"entityId":"42"}""", storedAudit.AfterData);
         Assert.Equal(OccurredAt, storedAudit.CreatedAt);
         Assert.Equal(message.Id, storedMessage.Id);
-        Assert.Equal("""{"entityId":"42"}""", storedMessage.Payload);
+        AssertJsonEquivalent("""{"entityId":"42"}""", storedMessage.Payload);
         Assert.Equal(OccurredAt, storedMessage.OccurredAt);
         Assert.Null(storedMessage.ProcessedAt);
         Assert.Equal(0, storedMessage.RetryCount);
@@ -129,4 +130,15 @@ public sealed class AuditAndOutboxPersistenceTests
             afterData: """{"entityId":"42"}""",
             "trace-id",
             OccurredAt);
+
+    private static void AssertJsonEquivalent(string expected, string? actual)
+    {
+        Assert.NotNull(actual);
+        using var expectedDocument = JsonDocument.Parse(expected);
+        using var actualDocument = JsonDocument.Parse(actual);
+        Assert.True(
+            JsonElement.DeepEquals(
+                expectedDocument.RootElement,
+                actualDocument.RootElement));
+    }
 }

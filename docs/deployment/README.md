@@ -38,7 +38,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yml down
 3. API и Worker запускаются только после успешных миграций.
 4. API считается готовым после `/health/ready`.
 
-API публикуется на `ECOBILLING_API_PORT` (`8080` по умолчанию). PostgreSQL наружу не публикуется. Runtime-контейнеры работают non-root, с read-only root filesystem, writable `/tmp`, удалёнными capabilities, `no-new-privileges` и 30-секундным graceful shutdown. TLS должен завершаться reverse proxy или ingress перед API.
+API публикуется на `ECOBILLING_API_PORT` (`8080` по умолчанию). PostgreSQL наружу не публикуется. Runtime-контейнеры работают non-root, с read-only root filesystem, writable `/tmp`, удалёнными capabilities, `no-new-privileges` и 30-секундным graceful shutdown. TLS должен завершаться reverse proxy или ingress перед API. До production нужно также ограничить доверенные proxy, корректно настроить forwarded headers и убедиться, что внешний Host входит в `AllowedHosts`.
 
 В production не задавайте `ASPNETCORE_ENVIRONMENT` и `DOTNET_ENVIRONMENT` как `Development`; значения Compose по умолчанию — `Production`. Dockerfile фиксируют patch-версии .NET, поэтому их следует обновлять вместе с плановым обновлением SDK/runtime и полной проверкой образов.
 
@@ -63,6 +63,7 @@ Worker требует строку подключения `ConnectionStrings:Eco
 - `InternalServiceAuthentication__SigningKeys__0__KeyId` — идентификатор публичного ключа;
 - `InternalServiceAuthentication__SigningKeys__0__PublicKeyPem` — RSA public key в PEM;
 - `DirectorProvisioning__RequestFingerprintKey` — секрет из минимум 32 случайных байт в Base64.
+- `AllowedHosts` — точный allowlist внешних и внутренних host names; wildcard запрещён.
 
 Для ротации добавьте следующий публичный ключ новым индексом `SigningKeys`, разверните конфигурацию EcoBilling, переключите Control на новый `kid`, дождитесь окончания максимального срока JWT с учётом clock skew и только затем удалите старый ключ.
 
@@ -84,4 +85,19 @@ API предоставляет:
 Observability__OtlpEndpoint=http://otel-collector:4317
 ```
 
-Если значение не задано, OTLP-экспорт не запускается. Выбор collector/backend, sampling, dashboards, alerts и сроки хранения остаются частью production deployment. Worker публикует ошибки и длительность заданий в logs/metrics/traces, но отдельный HTTP health server для него будет определён вместе с Docker-моделью.
+Если значение не задано, OTLP-экспорт не запускается. Выбор collector/backend, sampling, dashboards, alerts и сроки хранения остаются частью production deployment. Worker публикует ошибки и длительность runner в logs/metrics/traces. Его текущий container health check подтверждает только жизнь PID 1; отдельной readiness семантики заданий нет, потому что реальные jobs ещё не зарегистрированы.
+
+## Граница production readiness
+
+Compose является воспроизводимым локальным и staging-контуром, но не выбирает за оператора:
+
+- TLS termination и доверенную сетевую границу;
+- production secret store и процедуру ротации секретов;
+- отдельные минимальные PostgreSQL-роли для migrations и runtime;
+- backup/restore, RPO, RTO и SLA;
+- telemetry backend, dashboards, alerts и сроки хранения;
+- оркестратор, replicas и стратегию rollout/rollback.
+
+Эти решения должны быть утверждены для конкретного окружения до production release. Обязательные настройки перечислены в [справочнике конфигурации](../configuration/README.md), а безопасная последовательность запуска и обновления — в [эксплуатационном runbook](../operations/README.md).
+
+Текущее решение и доказательства финальной проверки находятся в [отчёте безопасности](../security/README.md).

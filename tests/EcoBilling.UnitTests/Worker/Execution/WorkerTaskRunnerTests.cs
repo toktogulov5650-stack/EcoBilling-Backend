@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using EcoBilling.Worker.Execution;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -72,6 +73,29 @@ public sealed class WorkerTaskRunnerTests
 
         Assert.Same(expectedException, actualException);
         Assert.Equal(3, task.AttemptCount);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenTaskFails_DoesNotLogExceptionMessageOrObject()
+    {
+        const string sensitiveMessage =
+            "Host=database;Password=must-not-appear-in-logs";
+        var logger = new RecordingLogger();
+        var task = new RecordingWorkerTask(
+            (_, _) => Task.FromException(
+                new InvalidOperationException(sensitiveMessage)));
+        var runner = CreateRunner(maxAttempts: 1, logger: logger);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => runner.RunAsync(task, CancellationToken.None));
+
+        var error = Assert.Single(logger.Entries, entry => entry.Level is LogLevel.Error);
+        Assert.DoesNotContain(sensitiveMessage, error.Message, StringComparison.Ordinal);
+        Assert.Null(error.Exception);
+        Assert.Contains(
+            typeof(InvalidOperationException).FullName!,
+            error.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -166,7 +190,8 @@ public sealed class WorkerTaskRunnerTests
 
     private static WorkerTaskRunner CreateRunner(
         int maxAttempts,
-        TimeSpan? retryDelay = null) =>
+        TimeSpan? retryDelay = null,
+        ILogger<WorkerTaskRunner>? logger = null) =>
         new(
             Options.Create(
                 new WorkerTaskExecutionOptions
@@ -174,8 +199,40 @@ public sealed class WorkerTaskRunnerTests
                     MaxAttempts = maxAttempts,
                     RetryDelay = retryDelay ?? TimeSpan.Zero
                 }),
-            NullLogger<WorkerTaskRunner>.Instance,
+            logger ?? NullLogger<WorkerTaskRunner>.Instance,
             TimeProvider.System);
+
+    private sealed class RecordingLogger : ILogger<WorkerTaskRunner>
+    {
+        public List<LogEntry> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => NoopScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+
+        private sealed class NoopScope : IDisposable
+        {
+            public static NoopScope Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
+        }
+    }
+
+    private sealed record LogEntry(
+        LogLevel Level,
+        string Message,
+        Exception? Exception);
 
     private sealed class RecordingWorkerTask(
         Func<int, CancellationToken, Task> execute)

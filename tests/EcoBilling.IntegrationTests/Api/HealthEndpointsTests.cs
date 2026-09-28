@@ -91,6 +91,25 @@ public sealed class HealthEndpointsTests
         Assert.False(string.IsNullOrWhiteSpace(returnedCorrelationId));
     }
 
+    [Fact]
+    public async Task LiveEndpoint_WithUntrustedHost_ReturnsBadRequest()
+    {
+        using var rsa = RSA.Create(2048);
+        await using var factory = new HealthApiFactory(
+            rsa.ExportSubjectPublicKeyInfoPem());
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                BaseAddress = new Uri("https://localhost")
+            });
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        request.Headers.Host = "untrusted.example";
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private sealed class HealthApiFactory(string publicKeyPem)
         : WebApplicationFactory<Program>
     {

@@ -343,7 +343,13 @@ public sealed class InternalDirectorProvisioningApiTests
                     ["InternalServiceAuthentication__ClockSkew"] = "00:00:30",
                     ["InternalServiceAuthentication__SigningKeys__0__KeyId"] = KeyId,
                     ["InternalServiceAuthentication__SigningKeys__0__PublicKeyPem"] =
-                        rsa.ExportSubjectPublicKeyInfoPem()
+                        rsa.ExportSubjectPublicKeyInfoPem(),
+                    ["UserAuthentication__Issuer"] = "https://api.ecobilling.test",
+                    ["UserAuthentication__Audience"] = "ecobilling-users-test",
+                    ["UserAuthentication__ActiveSigningKeyId"] = "users-test-1",
+                    ["UserAuthentication__SigningKeys__0__KeyId"] = "users-test-1",
+                    ["UserAuthentication__SigningKeys__0__SecretBase64"] =
+                        "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
                 });
 
             try

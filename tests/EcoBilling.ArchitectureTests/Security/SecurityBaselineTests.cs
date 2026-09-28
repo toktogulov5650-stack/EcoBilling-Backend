@@ -32,6 +32,22 @@ public sealed class SecurityBaselineTests
         Assert.Contains("ALLOWED_HOSTS=", environmentTemplate, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void UserJwtSigningKey_IsRequiredFromEnvironmentAndNotStoredInAppSettings()
+    {
+        var appSettings = ReadRepositoryFile("src", "EcoBilling.Api", "appsettings.json");
+        var compose = ReadRepositoryFile("deploy", "compose.yml");
+        var environmentTemplate = ReadRepositoryFile("deploy", ".env.example");
+
+        Assert.DoesNotContain("SecretBase64", appSettings, StringComparison.Ordinal);
+        Assert.Contains("${USER_AUTH_SIGNING_KEY:?", compose, StringComparison.Ordinal);
+        Assert.Contains(
+            "UserAuthentication__SigningKeys__0__SecretBase64",
+            compose,
+            StringComparison.Ordinal);
+        Assert.Contains("USER_AUTH_SIGNING_KEY=", environmentTemplate, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(params string[] pathParts) =>
         File.ReadAllText(
             Path.Combine(

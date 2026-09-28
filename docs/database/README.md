@@ -13,9 +13,14 @@ EcoBilling использует одну PostgreSQL на экземпляр ок
 | `normalized_login` | `text` | NOT NULL |
 | `password_hash` | `text` | NOT NULL |
 | `role` | `integer` | NOT NULL, значение 1, 2 или 3 |
+| `requires_password_change` | `boolean` | NOT NULL |
+| `failed_login_attempts` | `integer` | NOT NULL, не меньше 0 |
+| `lockout_end` | `timestamp with time zone` | NULL, UTC |
 | `created_at` | `timestamp with time zone` | NOT NULL, UTC |
 
 Уникальный индекс `ux_user_accounts_login_type_normalized_login` создан по `(login_type, normalized_login)`. Код округа и профильные данные пользователя в таблице отсутствуют.
+
+Миграция `AddRefreshSessions` добавляет `identity.refresh_sessions`: `user_id`, `family_id`, уникальный SHA-256 `token_hash`, UTC-времена создания/истечения/использования/отзыва и ссылку на заменившую сессию. Raw refresh token в базе отсутствует. Повтор использованного token и явный revoke отзывают активные записи всей семьи одной транзакцией.
 
 ## Миграции
 

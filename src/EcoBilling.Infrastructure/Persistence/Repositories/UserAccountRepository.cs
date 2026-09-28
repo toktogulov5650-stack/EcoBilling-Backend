@@ -14,11 +14,18 @@ public sealed class UserAccountRepository(EcoBillingDbContext dbContext)
         ArgumentNullException.ThrowIfNull(loginIdentity);
 
         return dbContext.UserAccounts
-            .AsNoTracking()
             .SingleOrDefaultAsync(
                 userAccount =>
                     userAccount.LoginIdentity.Type == loginIdentity.Type &&
                     userAccount.LoginIdentity.NormalizedValue == loginIdentity.NormalizedValue,
                 cancellationToken);
+    }
+
+    public async Task SaveAsync(
+        UserAccount userAccount,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(userAccount);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

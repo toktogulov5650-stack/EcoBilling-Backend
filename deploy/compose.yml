@@ -65,6 +65,11 @@ services:
       InternalServiceAuthentication__Audience: ${INTERNAL_SERVICE_AUDIENCE:-ecobilling-local}
       InternalServiceAuthentication__SigningKeys__0__KeyId: ${INTERNAL_SERVICE_KEY_ID:-control-local-1}
       InternalServiceAuthentication__SigningKeys__0__PublicKeyPem: ${INTERNAL_SERVICE_PUBLIC_KEY_PEM:?Set INTERNAL_SERVICE_PUBLIC_KEY_PEM in deploy/.env}
+      UserAuthentication__Issuer: ${USER_AUTH_ISSUER:-https://api.ecobilling.local}
+      UserAuthentication__Audience: ${USER_AUTH_AUDIENCE:-ecobilling-users-local}
+      UserAuthentication__ActiveSigningKeyId: ${USER_AUTH_KEY_ID:-users-local-1}
+      UserAuthentication__SigningKeys__0__KeyId: ${USER_AUTH_KEY_ID:-users-local-1}
+      UserAuthentication__SigningKeys__0__SecretBase64: ${USER_AUTH_SIGNING_KEY:?Set USER_AUTH_SIGNING_KEY in deploy/.env}
       AllowedHosts: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in deploy/.env}
       Observability__OtlpEndpoint: ${OTLP_ENDPOINT:-}
     ports:

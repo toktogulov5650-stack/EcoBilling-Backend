@@ -5,11 +5,27 @@
 | Метод и путь | Доступ | Назначение |
 |---|---|---|
 | `POST /internal/v1/directors` | Отдельный service JWT | Первоначальное создание единственного директора округа. |
+| `POST /api/v1/auth/login` | Anonymous | Вход по email или номеру лицевого счёта и выпуск пары токенов. |
+| `POST /api/v1/auth/refresh` | Anonymous, refresh token в body | Одноразовая ротация refresh token и выпуск нового access token. |
+| `POST /api/v1/auth/revoke` | Anonymous, refresh token в body | Идемпотентный отзыв всей token family. |
+| `POST /api/v1/auth/setup-password` | Anonymous, начальная тайна в body | Однократная замена начальной тайны Director/Controller. |
 | `GET /health/live` | Anonymous | Liveness процесса без зависимости от PostgreSQL. |
 | `GET /health/ready` | Anonymous | Readiness процесса и PostgreSQL. |
 | `GET /health` | Anonymous | Совместимый alias readiness. |
 
-Публичных `/api/v1` endpoints, регистрации, пользовательского входа и выпуска токенов пока нет. Неизвестный маршрут получает безопасный RFC 7807 `404` с кодом `request.not_found`.
+Публичной регистрации нет. Неизвестный маршрут получает безопасный RFC 7807 `404` с кодом `request.not_found`.
+
+## Пользовательская аутентификация
+
+`POST /api/v1/auth/login` принимает `loginType` со значением `email` или `accountNumber`, `login` и `password`. Успешный ответ содержит `Bearer` access token, его UTC-срок, одноразовый refresh token, срок refresh token и роль. Access token по умолчанию действует 15 минут, refresh token — 30 дней.
+
+Refresh token хранится только как SHA-256 hash. `POST /api/v1/auth/refresh` атомарно помечает предъявленную сессию использованной и создаёт замену в той же семье. Повтор уже использованного token отзывает всю семью, включая выданную замену. `POST /api/v1/auth/revoke` также отзывает семью и всегда идемпотентно возвращает `204`.
+
+Пять подряд неверных паролей блокируют account на 15 минут. Ответ остаётся одинаковым для неизвестного login, неправильного password и заблокированного account: `401 auth.invalid_credentials`.
+
+Director и Controller, созданные с начальной тайной, сначала вызывают `POST /api/v1/auth/setup-password`. Новый пароль содержит 12–256 символов и не может совпадать с начальной тайной. До успешной замены login возвращает `403 auth.password_setup_required`. Resident не использует self-service setup: его пароль устанавливает или сбрасывает Director.
+
+Access JWT подписывается HS256, содержит `kid`, `sub`, `jti`, `iat`, `exp` и `role`, проверяется по точным issuer/audience и не содержит refresh token или пароль. Raw access/refresh tokens и credentials не журналируются.
 
 ## Внутреннее создание директора
 
@@ -97,4 +113,6 @@ GET /health
 
 ## OpenAPI
 
-В окружении `Development` документ доступен как `GET /openapi/v1.json`. В `Testing` и `Production` OpenAPI endpoint не публикуется. Health endpoints исключены из документа; внутренний provisioning остаётся помеченным тегом `Internal` и не становится публичным контрактом из-за наличия в OpenAPI.
+В окружении `Development` интерактивный Swagger UI доступен по адресу `GET /swagger`, а JSON-контракт — как `GET /swagger/v1/swagger.json`. Сохранён и нативный документ `GET /openapi/v1.json`. Swagger поддерживает JWT Bearer через кнопку `Authorize`: используйте access token, возвращённый `POST /api/v1/auth/login`.
+
+В `Testing` и `Production` Swagger UI и OpenAPI endpoints не публикуются. Health endpoints исключены из документа; внутренний provisioning остаётся помеченным тегом `Internal` и не становится публичным контрактом из-за наличия в OpenAPI.

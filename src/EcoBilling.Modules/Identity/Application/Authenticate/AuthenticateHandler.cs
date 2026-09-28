@@ -10,11 +10,15 @@ public sealed class AuthenticateHandler
     private readonly IUserAccountRepository userAccountRepository;
     private readonly IPasswordHasher passwordHasher;
     private readonly ILoginNormalizer loginNormalizer;
+    private readonly AuthenticationPolicy policy;
+    private readonly TimeProvider timeProvider;
 
     public AuthenticateHandler(
         IUserAccountRepository userAccountRepository,
         IPasswordHasher passwordHasher,
-        ILoginNormalizer loginNormalizer)
+        ILoginNormalizer loginNormalizer,
+        AuthenticationPolicy policy,
+        TimeProvider timeProvider)
     {
         this.userAccountRepository = userAccountRepository
             ?? throw new ArgumentNullException(nameof(userAccountRepository));
@@ -22,6 +26,10 @@ public sealed class AuthenticateHandler
             ?? throw new ArgumentNullException(nameof(passwordHasher));
         this.loginNormalizer = loginNormalizer
             ?? throw new ArgumentNullException(nameof(loginNormalizer));
+        this.policy = policy
+            ?? throw new ArgumentNullException(nameof(policy));
+        this.timeProvider = timeProvider
+            ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public async Task<Result<AuthenticationResult>> Handle(
@@ -50,12 +58,25 @@ public sealed class AuthenticateHandler
             return Result<AuthenticationResult>.Failure(IdentityErrors.InvalidCredentials);
         }
 
+        var now = timeProvider.GetUtcNow();
+        if (userAccount.IsLockedOut(now))
+        {
+            return Result<AuthenticationResult>.Failure(IdentityErrors.InvalidCredentials);
+        }
+
         var verificationOutcome = passwordHasher.Verify(
             command.Password,
             userAccount.PasswordHash);
 
         if (verificationOutcome is PasswordVerificationOutcome.Failed)
         {
+            userAccount.RecordFailedLogin(
+                now,
+                policy.MaximumFailedAttempts,
+                policy.LockoutDuration);
+            await userAccountRepository.SaveAsync(
+                userAccount,
+                cancellationToken);
             return Result<AuthenticationResult>.Failure(IdentityErrors.InvalidCredentials);
         }
 
@@ -63,6 +84,16 @@ public sealed class AuthenticateHandler
         {
             return Result<AuthenticationResult>.Failure(IdentityErrors.PasswordSetupRequired);
         }
+
+        if (verificationOutcome is PasswordVerificationOutcome.SuccessRehashNeeded)
+        {
+            userAccount.ReplacePasswordHash(passwordHasher.Hash(command.Password));
+        }
+
+        userAccount.RecordSuccessfulLogin();
+        await userAccountRepository.SaveAsync(
+            userAccount,
+            cancellationToken);
 
         var authenticatedUser = new AuthenticatedUser(userAccount.Id, userAccount.Role);
         return Result<AuthenticationResult>.Success(

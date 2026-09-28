@@ -12,12 +12,26 @@ public sealed class PublicHttpBoundaryJourneyTests
     {
         await using var host = await EcoBillingEndToEndHost.CreateAsync();
 
-        Assert.All(
-            host.RoutePatterns,
-            route => Assert.True(
-                route.StartsWith("/health", StringComparison.Ordinal) ||
-                route.StartsWith("/internal/", StringComparison.Ordinal),
-                $"Unexpected public route is exposed: {route}"));
+        var expectedPublicRoutes = new[]
+        {
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/revoke",
+            "/api/v1/auth/setup-password"
+        };
+        var actualPublicRoutes = host.RoutePatterns
+            .Where(route =>
+                !route.StartsWith("/health", StringComparison.Ordinal) &&
+                !route.StartsWith("/internal/", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(
+            expectedPublicRoutes.Order(StringComparer.Ordinal),
+            actualPublicRoutes);
+        Assert.DoesNotContain(
+            actualPublicRoutes,
+            route => route.Contains("register", StringComparison.OrdinalIgnoreCase));
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,

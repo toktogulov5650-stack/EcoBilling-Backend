@@ -11,6 +11,8 @@ public sealed class AuthenticateHandlerTests
     private const string StoredHash = "test-password-hash";
     private static readonly DateTimeOffset CreatedAt =
         new(2026, 9, 24, 12, 0, 0, TimeSpan.FromHours(6));
+    private static readonly DateTimeOffset UtcNow =
+        new(2026, 9, 28, 8, 0, 0, TimeSpan.Zero);
 
     [Theory]
     [InlineData(UserRole.Resident, LoginType.AccountNumber, "A-100")]
@@ -62,21 +64,24 @@ public sealed class AuthenticateHandlerTests
     }
 
     [Fact]
-    public async Task Handle_AcceptsPasswordThatNeedsRehashWithoutChangingStoredHash()
+    public async Task Handle_RehashesPasswordWhenHasherRequestsUpgrade()
     {
         var account = CreateAccount(UserRole.Controller, LoginType.Email, "user@example.com");
         var repository = new RecordingUserAccountRepository(account);
         var handler = new AuthenticateHandler(
             repository,
             new ConfigurablePasswordHasher(PasswordVerificationOutcome.SuccessRehashNeeded),
-            new LoginNormalizer());
+            new LoginNormalizer(),
+            AuthenticationPolicy.Default,
+            new FixedTimeProvider(UtcNow));
 
         var result = await handler.Handle(
             new AuthenticateCommand(LoginType.Email, "user@example.com", ValidPassword),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(StoredHash, account.PasswordHash);
+        Assert.Equal(ConfigurablePasswordHasher.RehashedPassword, account.PasswordHash);
+        Assert.Equal(1, repository.SaveCount);
     }
 
     [Fact]
@@ -162,6 +167,71 @@ public sealed class AuthenticateHandlerTests
         Assert.Equal(cancellationTokenSource.Token, repository.ReceivedCancellationToken);
     }
 
+    [Fact]
+    public async Task Handle_LocksAccountAfterConfiguredFailedAttempts()
+    {
+        var account = CreateAccount(UserRole.Controller, LoginType.Email, "user@example.com");
+        var repository = new RecordingUserAccountRepository(account);
+        var handler = CreateHandler(repository, passwordMatches: false);
+
+        for (var attempt = 0; attempt < AuthenticationPolicy.DefaultMaximumFailedAttempts; attempt++)
+        {
+            var result = await handler.Handle(
+                new AuthenticateCommand(LoginType.Email, "user@example.com", "wrong-password"),
+                CancellationToken.None);
+
+            AssertInvalidCredentials(result);
+        }
+
+        Assert.Equal(AuthenticationPolicy.DefaultMaximumFailedAttempts, account.FailedLoginAttempts);
+        Assert.Equal(UtcNow.Add(AuthenticationPolicy.DefaultLockoutDuration), account.LockoutEnd);
+        Assert.Equal(AuthenticationPolicy.DefaultMaximumFailedAttempts, repository.SaveCount);
+    }
+
+    [Fact]
+    public async Task Handle_RejectsCorrectPasswordWhileAccountIsLocked()
+    {
+        var account = CreateAccount(UserRole.Controller, LoginType.Email, "user@example.com");
+        for (var attempt = 0; attempt < AuthenticationPolicy.DefaultMaximumFailedAttempts; attempt++)
+        {
+            account.RecordFailedLogin(
+                UtcNow,
+                AuthenticationPolicy.DefaultMaximumFailedAttempts,
+                AuthenticationPolicy.DefaultLockoutDuration);
+        }
+
+        var repository = new RecordingUserAccountRepository(account);
+        var handler = CreateHandler(repository, passwordMatches: true);
+
+        var result = await handler.Handle(
+            new AuthenticateCommand(LoginType.Email, "user@example.com", ValidPassword),
+            CancellationToken.None);
+
+        AssertInvalidCredentials(result);
+        Assert.Equal(0, repository.SaveCount);
+    }
+
+    [Fact]
+    public async Task Handle_SuccessResetsPreviousFailedAttempts()
+    {
+        var account = CreateAccount(UserRole.Controller, LoginType.Email, "user@example.com");
+        account.RecordFailedLogin(
+            UtcNow,
+            AuthenticationPolicy.DefaultMaximumFailedAttempts,
+            AuthenticationPolicy.DefaultLockoutDuration);
+        var repository = new RecordingUserAccountRepository(account);
+        var handler = CreateHandler(repository, passwordMatches: true);
+
+        var result = await handler.Handle(
+            new AuthenticateCommand(LoginType.Email, "user@example.com", ValidPassword),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, account.FailedLoginAttempts);
+        Assert.Null(account.LockoutEnd);
+        Assert.Equal(1, repository.SaveCount);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -237,7 +307,9 @@ public sealed class AuthenticateHandlerTests
         bool passwordMatches) => new(
             repository,
             new ConfigurablePasswordHasher(passwordMatches),
-            new LoginNormalizer());
+            new LoginNormalizer(),
+            AuthenticationPolicy.Default,
+            new FixedTimeProvider(UtcNow));
 
     private static UserAccount CreateAccount(
         UserRole role,
@@ -269,6 +341,8 @@ public sealed class AuthenticateHandlerTests
 
         public CancellationToken ReceivedCancellationToken { get; private set; }
 
+        public int SaveCount { get; private set; }
+
         public Task<UserAccount?> GetByLoginAsync(
             LoginIdentity loginIdentity,
             CancellationToken cancellationToken)
@@ -278,10 +352,22 @@ public sealed class AuthenticateHandlerTests
             ReceivedCancellationToken = cancellationToken;
             return Task.FromResult(account);
         }
+
+        public Task SaveAsync(
+            UserAccount userAccount,
+            CancellationToken cancellationToken)
+        {
+            Assert.Same(account, userAccount);
+            SaveCount++;
+            ReceivedCancellationToken = cancellationToken;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class ConfigurablePasswordHasher : IPasswordHasher
     {
+        public const string RehashedPassword = "rehash-password-hash";
+
         private readonly PasswordVerificationOutcome outcome;
 
         public ConfigurablePasswordHasher(bool passwordMatches)
@@ -297,11 +383,18 @@ public sealed class AuthenticateHandlerTests
         }
 
         public string Hash(string password) =>
-            throw new NotSupportedException("Hashing is not used by authentication tests.");
+            password == ValidPassword
+                ? RehashedPassword
+                : throw new InvalidOperationException("Unexpected password was rehashed.");
 
         public PasswordVerificationOutcome Verify(string password, string passwordHash) =>
             password == ValidPassword && passwordHash == StoredHash
                 ? outcome
                 : PasswordVerificationOutcome.Failed;
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

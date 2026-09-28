@@ -16,12 +16,23 @@ EcoBilling использует стандартную конфигурацию 
 | `InternalServiceAuthentication__SigningKeys__0__PublicKeyPem` | Обязателен, доверенная конфигурация | Только публичный RSA-ключ. Private key остаётся в EcoBilling.Control. |
 | `InternalServiceAuthentication__MaximumTokenLifetime` | Необязателен | Максимальная жизнь service JWT; по умолчанию `00:02:00`. |
 | `InternalServiceAuthentication__ClockSkew` | Необязателен | Допустимое расхождение часов; по умолчанию `00:00:30`. |
+| `UserAuthentication__Issuer` | Обязателен | Точный issuer пользовательских access JWT этого API. |
+| `UserAuthentication__Audience` | Обязателен | Audience пользовательских клиентов округа. |
+| `UserAuthentication__ActiveSigningKeyId` | Обязателен | `kid` активного ключа выпуска access JWT. |
+| `UserAuthentication__SigningKeys__0__KeyId` | Обязателен | Уникальный `kid`; несколько элементов поддерживают безопасную ротацию. |
+| `UserAuthentication__SigningKeys__0__SecretBase64` | Обязателен, секрет | Base64 минимум 32 случайных байт. Не хранится в Git. |
+| `UserAuthentication__AccessTokenLifetime` | Необязателен | По умолчанию `00:15:00`. |
+| `UserAuthentication__RefreshTokenLifetime` | Необязателен | По умолчанию `30.00:00:00`. |
+| `UserAuthentication__MaximumFailedAttempts` | Необязателен | По умолчанию `5`. |
+| `UserAuthentication__LockoutDuration` | Необязателен | По умолчанию `00:15:00`. |
+| `UserAuthentication__MinimumPasswordLength` | Необязателен | По умолчанию `12`. |
+| `UserAuthentication__MaximumPasswordLength` | Необязателен | По умолчанию `256`. |
 | `Observability__OtlpEndpoint` | Необязателен | Абсолютный HTTP(S) URI OTLP collector. Пустое значение отключает экспорт. |
 | `AllowedHosts` | Обязателен для окружения | Разделённый `;` allowlist host names, которые обслуживает API. Wildcard `*` запрещён для deployment. |
 | `ASPNETCORE_ENVIRONMENT` | Необязателен | В production не должен иметь значение `Development`; OpenAPI включён только в `Development`. |
 | `ASPNETCORE_HTTP_PORTS` | Необязателен | В Compose API слушает внутренний порт `8080`. |
 
-API завершает запуск с ошибкой, если обязательная строка подключения, fingerprint key, issuer, audience или хотя бы один корректный публичный ключ отсутствуют.
+API завершает запуск с ошибкой, если обязательная строка подключения, fingerprint key, service JWT issuer/audience/public key или user JWT issuer/audience/signing key отсутствуют.
 
 ## EcoBilling.Worker
 
@@ -48,8 +59,8 @@ Production credentials нельзя использовать для локаль
 
 `deploy/compose.yml` читает:
 
-- обязательные `POSTGRES_PASSWORD`, `DIRECTOR_PROVISIONING_FINGERPRINT_KEY`, `INTERNAL_SERVICE_PUBLIC_KEY_PEM` и `ALLOWED_HOSTS`;
-- локальные идентификаторы `INTERNAL_SERVICE_ISSUER`, `INTERNAL_SERVICE_AUDIENCE` и `INTERNAL_SERVICE_KEY_ID`;
+- обязательные `POSTGRES_PASSWORD`, `DIRECTOR_PROVISIONING_FINGERPRINT_KEY`, `INTERNAL_SERVICE_PUBLIC_KEY_PEM`, `USER_AUTH_SIGNING_KEY` и `ALLOWED_HOSTS`;
+- локальные идентификаторы `INTERNAL_SERVICE_ISSUER`, `INTERNAL_SERVICE_AUDIENCE`, `INTERNAL_SERVICE_KEY_ID`, `USER_AUTH_ISSUER`, `USER_AUTH_AUDIENCE` и `USER_AUTH_KEY_ID`;
 - `ECOBILLING_API_PORT` для host-порта API, по умолчанию `8080`;
 - `ASPNETCORE_ENVIRONMENT` и `DOTNET_ENVIRONMENT`, по умолчанию `Production`;
 - необязательный `OTLP_ENDPOINT`.
@@ -73,3 +84,5 @@ Production credentials нельзя использовать для локаль
 5. Удалите старый публичный ключ.
 
 Механизм production secret store выбирается при развёртывании и в репозитории не фиксируется случайным значением.
+
+При ротации пользовательского JWT-ключа сначала добавьте новый элемент `SigningKeys`, затем переключите `ActiveSigningKeyId`. Старый ключ удаляется только после максимального срока ранее выпущенного access token с учётом clock skew. Ротация signing key не заменяет отзыв refresh token family.

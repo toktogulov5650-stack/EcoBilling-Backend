@@ -17,7 +17,9 @@ public sealed class UserAccount
         string passwordHash,
         UserRole role,
         bool requiresPasswordChange,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        int failedLoginAttempts,
+        DateTimeOffset? lockoutEnd)
     {
         Id = id;
         LoginIdentity = loginIdentity;
@@ -25,6 +27,8 @@ public sealed class UserAccount
         Role = role;
         RequiresPasswordChange = requiresPasswordChange;
         CreatedAt = createdAt;
+        FailedLoginAttempts = failedLoginAttempts;
+        LockoutEnd = lockoutEnd;
     }
 
     public UserId Id { get; private set; }
@@ -38,6 +42,10 @@ public sealed class UserAccount
     public bool RequiresPasswordChange { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
+
+    public int FailedLoginAttempts { get; private set; }
+
+    public DateTimeOffset? LockoutEnd { get; private set; }
 
     public static Result<UserAccount> Create(
         UserId id,
@@ -76,6 +84,69 @@ public sealed class UserAccount
                 passwordHash,
                 role,
                 requiresPasswordChange,
-                createdAt.ToUniversalTime()));
+                createdAt.ToUniversalTime(),
+                failedLoginAttempts: 0,
+                lockoutEnd: null));
+    }
+
+    public bool IsLockedOut(DateTimeOffset now) =>
+        LockoutEnd is not null && LockoutEnd > now.ToUniversalTime();
+
+    public void RecordFailedLogin(
+        DateTimeOffset now,
+        int maximumFailedAttempts,
+        TimeSpan lockoutDuration)
+    {
+        if (maximumFailedAttempts < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumFailedAttempts));
+        }
+
+        if (lockoutDuration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lockoutDuration));
+        }
+
+        var utcNow = now.ToUniversalTime();
+        if (LockoutEnd is not null && LockoutEnd <= utcNow)
+        {
+            FailedLoginAttempts = 0;
+            LockoutEnd = null;
+        }
+
+        FailedLoginAttempts++;
+        if (FailedLoginAttempts >= maximumFailedAttempts)
+        {
+            LockoutEnd = utcNow.Add(lockoutDuration);
+        }
+    }
+
+    public void RecordSuccessfulLogin()
+    {
+        FailedLoginAttempts = 0;
+        LockoutEnd = null;
+    }
+
+    public void ReplacePasswordHash(string? passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+        {
+            throw new ArgumentException("A password hash is required.", nameof(passwordHash));
+        }
+
+        PasswordHash = passwordHash;
+    }
+
+    public void CompletePasswordSetup(string? passwordHash)
+    {
+        if (!RequiresPasswordChange || Role is UserRole.Resident)
+        {
+            throw new InvalidOperationException(
+                "Password setup is available only for staff accounts that require a password change.");
+        }
+
+        ReplacePasswordHash(passwordHash);
+        RequiresPasswordChange = false;
+        RecordSuccessfulLogin();
     }
 }

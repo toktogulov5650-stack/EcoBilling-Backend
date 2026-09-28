@@ -400,6 +400,75 @@ namespace EcoBilling.Infrastructure.Migrations
                     b.ToTable("director_provisioning_operations", "identity");
                 });
 
+            modelBuilder.Entity("EcoBilling.Modules.Identity.Domain.RefreshSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ConsumedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("consumed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("family_id");
+
+                    b.Property<Guid?>("ReplacedBySessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("replaced_by_session_id");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("token_hash")
+                        .IsFixedLength();
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_sessions");
+
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("ix_refresh_sessions_expires_at");
+
+                    b.HasIndex("FamilyId")
+                        .HasDatabaseName("ix_refresh_sessions_family_id");
+
+                    b.HasIndex("ReplacedBySessionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_refresh_sessions_replaced_by_session_id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("ux_refresh_sessions_token_hash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_refresh_sessions_user_id");
+
+                    b.ToTable("refresh_sessions", "identity", t =>
+                        {
+                            t.HasCheckConstraint("ck_refresh_sessions_expiry", "expires_at > created_at");
+
+                            t.HasCheckConstraint("ck_refresh_sessions_token_hash", "token_hash ~ '^[0-9A-F]{64}$'");
+                        });
+                });
+
             modelBuilder.Entity("EcoBilling.Modules.Identity.Domain.UserAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -409,6 +478,16 @@ namespace EcoBilling.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<int>("FailedLoginAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_login_attempts");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("lockout_end");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -433,6 +512,8 @@ namespace EcoBilling.Infrastructure.Migrations
 
                     b.ToTable("user_accounts", "identity", t =>
                         {
+                            t.HasCheckConstraint("ck_user_accounts_failed_login_attempts", "failed_login_attempts >= 0");
+
                             t.HasCheckConstraint("ck_user_accounts_login_type", "login_type IN (1, 2)");
 
                             t.HasCheckConstraint("ck_user_accounts_role", "role IN (1, 2, 3)");
@@ -700,6 +781,22 @@ namespace EcoBilling.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_director_provisioning_operations_directors_director_id");
+                });
+
+            modelBuilder.Entity("EcoBilling.Modules.Identity.Domain.RefreshSession", b =>
+                {
+                    b.HasOne("EcoBilling.Modules.Identity.Domain.RefreshSession", null)
+                        .WithOne()
+                        .HasForeignKey("EcoBilling.Modules.Identity.Domain.RefreshSession", "ReplacedBySessionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_refresh_sessions_replacement");
+
+                    b.HasOne("EcoBilling.Modules.Identity.Domain.UserAccount", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_sessions_user_accounts_user_id");
                 });
 
             modelBuilder.Entity("EcoBilling.Modules.Identity.Domain.UserAccount", b =>

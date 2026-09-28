@@ -1,9 +1,11 @@
 using EcoBilling.Api.Configuration;
+using EcoBilling.Api.Endpoints;
 using EcoBilling.Api.InternalEndpoints;
 using EcoBilling.Api.Middleware;
 using EcoBilling.Infrastructure;
 using EcoBilling.Infrastructure.Observability;
 using EcoBilling.Modules.Identity.Application.ProvisionDirector;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,30 @@ if (string.IsNullOrWhiteSpace(requestFingerprintKey))
 }
 
 builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc(
+        "v1",
+        new OpenApiInfo
+        {
+            Title = "EcoBilling API",
+            Description = "Backend API for one EcoBilling district.",
+            Version = "v1"
+        });
+    options.AddSecurityDefinition(
+        "Bearer",
+        new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Enter the access token returned by POST /api/v1/auth/login."
+        });
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
+});
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -60,6 +86,7 @@ builder.Services.AddEcoBillingObservability(
     instrumentAspNetCore: true);
 builder.Services.AddDirectorProvisioningSecurity(requestFingerprintKey);
 builder.Services.AddInternalServiceAuthentication(builder.Configuration);
+builder.Services.AddUserAuthentication(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ProvisionDirectorHandler>();
 
@@ -73,6 +100,15 @@ app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.DocumentTitle = "EcoBilling API";
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "EcoBilling API v1");
+        options.DisplayRequestDuration();
+        options.EnableTryItOutByDefault();
+        options.EnablePersistAuthorization();
+    });
 }
 
 app.UseHttpsRedirection();
@@ -82,6 +118,7 @@ app.UseAuthorization();
 app.MapEcoBillingHealthEndpoints();
 
 app.MapDirectorProvisioningEndpoints();
+app.MapUserAuthenticationEndpoints();
 
 app.Run();
 

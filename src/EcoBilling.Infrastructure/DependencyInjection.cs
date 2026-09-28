@@ -61,6 +61,7 @@ public static class DependencyInjection
                 timeout: TimeSpan.FromSeconds(5));
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
         services.AddScoped<IDirectorProvisioningRepository, DirectorProvisioningRepository>();
+        services.AddScoped<IRefreshSessionRepository, RefreshSessionRepository>();
         services.AddScoped<IInternalServiceTokenReplayStore, InternalServiceTokenReplayStore>();
         services.AddScoped<IResidentRepository, ResidentRepository>();
         services.AddScoped<IControllerRepository, ControllerRepository>();
@@ -74,6 +75,7 @@ public static class DependencyInjection
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IDistrictOperationalSummaryReader, DistrictOperationalSummaryReader>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
+        services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
 
         return services;
     }

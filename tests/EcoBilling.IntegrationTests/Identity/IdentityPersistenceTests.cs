@@ -73,6 +73,35 @@ public sealed class IdentityPersistenceTests
     }
 
     [PostgreSqlFact]
+    public async Task Repository_PersistsAuthenticationFailureAndLockoutState()
+    {
+        await using var database = await CreateMigratedDatabaseAsync();
+        var account = CreateAccount(UserRole.Controller, LoginType.Email, "locked@example.com");
+        await SaveAsync(database, account);
+        var now = new DateTimeOffset(2026, 9, 28, 8, 0, 0, TimeSpan.Zero);
+        await using (var context = database.CreateContext())
+        {
+            var repository = new UserAccountRepository(context);
+            var login = LoginIdentity.Create(LoginType.Email, "locked@example.com").Value;
+            var loaded = Assert.IsType<UserAccount>(
+                await repository.GetByLoginAsync(login, CancellationToken.None));
+
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                loaded.RecordFailedLogin(now, 5, TimeSpan.FromMinutes(15));
+            }
+
+            await repository.SaveAsync(loaded, CancellationToken.None);
+        }
+
+        await using var verificationContext = database.CreateContext();
+        var persisted = await verificationContext.UserAccounts.SingleAsync();
+
+        Assert.Equal(5, persisted.FailedLoginAttempts);
+        Assert.Equal(now.AddMinutes(15), persisted.LockoutEnd);
+    }
+
+    [PostgreSqlFact]
     public Task Resident_RoundTrips() =>
         AssertRoleRoundTripsAsync(UserRole.Resident, LoginType.AccountNumber, "resident-1");
 

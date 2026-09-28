@@ -7,4 +7,8 @@ public interface IUserAccountRepository
     Task<UserAccount?> GetByLoginAsync(
         LoginIdentity loginIdentity,
         CancellationToken cancellationToken);
+
+    Task SaveAsync(
+        UserAccount userAccount,
+        CancellationToken cancellationToken);
 }

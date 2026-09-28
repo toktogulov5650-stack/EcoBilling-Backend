@@ -28,6 +28,7 @@ EcoBilling — модульный монолит одного округа с о
 - [ADR-0022: граница End-to-End тестов](ADR-0022-end-to-end-test-boundary.md)
 - [ADR-0023: финальная документационная основа](ADR-0023-final-documentation-baseline.md)
 - [ADR-0024: финальная проверка безопасности и готовности](ADR-0024-final-security-readiness-review.md)
+- [ADR-0025: версионируемая политика продукта](ADR-0025-versioned-product-policy.md)
 - [Реестр открытых решений](open-decisions.md)
 
 Фактические `ProjectReference` проверяются проектом `EcoBilling.ArchitectureTests` непосредственно по `EcoBilling.slnx` и файлам проектов.

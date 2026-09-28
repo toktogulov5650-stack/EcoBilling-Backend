@@ -22,6 +22,8 @@ public sealed class UserAccountTests
         Assert.Equal(UserRole.Resident, result.Value.Role);
         Assert.False(result.Value.RequiresPasswordChange);
         Assert.Equal(CreatedAt.ToUniversalTime(), result.Value.CreatedAt);
+        Assert.Equal(0, result.Value.FailedLoginAttempts);
+        Assert.Null(result.Value.LockoutEnd);
     }
 
     [Fact]
@@ -106,6 +108,59 @@ public sealed class UserAccountTests
     }
 
     [Fact]
+    public void RecordFailedLogin_LocksAtThresholdAndExpiresAtConfiguredTime()
+    {
+        var account = CreateAccount();
+        var now = CreatedAt.ToUniversalTime();
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            account.RecordFailedLogin(now, 5, TimeSpan.FromMinutes(15));
+        }
+
+        Assert.True(account.IsLockedOut(now));
+        Assert.Equal(5, account.FailedLoginAttempts);
+        Assert.Equal(now.AddMinutes(15), account.LockoutEnd);
+        Assert.False(account.IsLockedOut(now.AddMinutes(15)));
+    }
+
+    [Fact]
+    public void RecordFailedLogin_AfterExpiredLockoutStartsNewSequence()
+    {
+        var account = CreateAccount();
+        var now = CreatedAt.ToUniversalTime();
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            account.RecordFailedLogin(now, 5, TimeSpan.FromMinutes(15));
+        }
+
+        account.RecordFailedLogin(now.AddMinutes(16), 5, TimeSpan.FromMinutes(15));
+
+        Assert.Equal(1, account.FailedLoginAttempts);
+        Assert.Null(account.LockoutEnd);
+    }
+
+    [Fact]
+    public void RecordSuccessfulLogin_ClearsFailureState()
+    {
+        var account = CreateAccount();
+        account.RecordFailedLogin(CreatedAt, 5, TimeSpan.FromMinutes(15));
+
+        account.RecordSuccessfulLogin();
+
+        Assert.Equal(0, account.FailedLoginAttempts);
+        Assert.Null(account.LockoutEnd);
+    }
+
+    [Fact]
+    public void ReplacePasswordHash_RejectsEmptyValue()
+    {
+        var account = CreateAccount();
+
+        Assert.Throws<ArgumentException>(() => account.ReplacePasswordHash("   "));
+    }
+
+    [Fact]
     public void ToString_DoesNotExposePasswordHash()
     {
         var account = UserAccount.Create(
@@ -120,4 +175,12 @@ public sealed class UserAccountTests
 
     private static LoginIdentity CreateLogin(LoginType type, string value) =>
         LoginIdentity.Create(type, value).Value;
+
+    private static UserAccount CreateAccount() =>
+        UserAccount.Create(
+            new UserId(Guid.NewGuid()),
+            CreateLogin(LoginType.AccountNumber, "A-100"),
+            "stored-hash",
+            UserRole.Resident,
+            CreatedAt).Value;
 }

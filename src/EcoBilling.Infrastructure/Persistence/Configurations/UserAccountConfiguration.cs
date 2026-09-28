@@ -19,6 +19,9 @@ internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAc
                 tableBuilder.HasCheckConstraint(
                     "ck_user_accounts_role",
                     "role IN (1, 2, 3)");
+                tableBuilder.HasCheckConstraint(
+                    "ck_user_accounts_failed_login_attempts",
+                    "failed_login_attempts >= 0");
             });
 
         builder.HasKey(userAccount => userAccount.Id)
@@ -54,6 +57,15 @@ internal sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAc
             .HasColumnName("created_at")
             .HasColumnType("timestamp with time zone")
             .IsRequired();
+
+        builder.Property(userAccount => userAccount.FailedLoginAttempts)
+            .HasColumnName("failed_login_attempts")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder.Property(userAccount => userAccount.LockoutEnd)
+            .HasColumnName("lockout_end")
+            .HasColumnType("timestamp with time zone");
 
         builder.OwnsOne(
             userAccount => userAccount.LoginIdentity,

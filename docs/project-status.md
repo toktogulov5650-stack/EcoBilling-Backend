@@ -7,7 +7,7 @@
 | Область | Подтверждённый объём |
 |---|---|
 | Архитектура | Модульный монолит с проверяемыми направлениями `ProjectReference` и отдельными composition roots API и Worker. |
-| Identity | Роли Resident, Controller и Director; типизированные login identifiers; безопасное хеширование и проверка пароля; PostgreSQL persistence. |
+| Identity | Вход по email/лицевому счёту, HS256 access JWT с ротацией `kid`, одноразовые hashed refresh sessions, token-family revoke/replay detection, persisted lockout и первичная установка пароля сотрудников. |
 | Director provisioning | Защищённый `POST /internal/v1/directors`, RS256 service JWT, защита `jti` от повтора, идемпотентность, атомарное создание и аудит. |
 | Residents и Controllers | Доменные профили, persistence и read handlers без пользовательских HTTP endpoints. |
 | Accounts и Addresses | Доменные модели, обязательные связи, нормализация и PostgreSQL constraints без финансового Balance. |
@@ -28,15 +28,18 @@ Production API предоставляет только:
 - `GET /health/live`;
 - `GET /health/ready`;
 - `GET /health`;
-- `POST /internal/v1/directors`.
+- `POST /internal/v1/directors`;
+- `POST /api/v1/auth/login`;
+- `POST /api/v1/auth/refresh`;
+- `POST /api/v1/auth/revoke`;
+- `POST /api/v1/auth/setup-password`.
 
 OpenAPI публикуется только в `Development`. Полный контракт описан в [документации API](api/README.md).
 
 ## Не реализовано
 
 - публичная регистрация — запрещена архитектурой;
-- пользовательский login endpoint и выпуск access/refresh token;
-- безопасное завершение первичной установки и сброса пароля;
+- сброс пароля Director для Resident/Controller и административный revoke всех сессий пользователя;
 - создание и изменение Resident/Controller директором;
 - назначения контроллеров и resource-based доступ к жителям;
 - пользовательские endpoints профилей, счетов, счётчиков, показаний, тарифов, начислений и платежей;

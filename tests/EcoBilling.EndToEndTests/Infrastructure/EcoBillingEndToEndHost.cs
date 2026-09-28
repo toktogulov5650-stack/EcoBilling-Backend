@@ -190,6 +190,13 @@ internal sealed class EcoBillingEndToEndHost : IAsyncDisposable
             builder.UseSetting(
                 "InternalServiceAuthentication:SigningKeys:0:PublicKeyPem",
                 publicKeyPem);
+            builder.UseSetting("UserAuthentication:Issuer", "https://api.ecobilling.test");
+            builder.UseSetting("UserAuthentication:Audience", "ecobilling-users-test");
+            builder.UseSetting("UserAuthentication:ActiveSigningKeyId", "users-test-1");
+            builder.UseSetting("UserAuthentication:SigningKeys:0:KeyId", "users-test-1");
+            builder.UseSetting(
+                "UserAuthentication:SigningKeys:0:SecretBase64",
+                "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=");
         }
     }
 }

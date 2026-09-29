@@ -236,6 +236,7 @@ app.MapEcoBillingHealthEndpoints();
 app.MapDirectorProvisioningEndpoints();
 app.MapDirectorSelfServiceEndpoints();
 app.MapUserAuthenticationEndpoints();
+app.MapUserAdministrationEndpoints();
 app.MapControllerManagementEndpoints();
 app.MapAccountManagementEndpoints();
 app.MapResidentManagementEndpoints();

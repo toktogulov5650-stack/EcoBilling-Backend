@@ -56,6 +56,52 @@ jobs:
       - name: Test Release
         run: dotnet test EcoBilling.slnx --configuration Release --no-build
 
+      - name: Validate Docker Compose
+        run: docker compose --env-file deploy/.env.example --file deploy/compose.yml config --quiet
+
+      - name: Build container images
+        run: docker compose --env-file deploy/.env.example --file deploy/compose.yml build api worker migrations
+
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ecobilling-api:latest
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Scan Worker image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ecobilling-worker:latest
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Scan Migrations image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ecobilling-migrations:latest
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Scan PostgreSQL image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: postgres:17-alpine
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
       - name: Publish API
         run: dotnet publish src/EcoBilling.Api/EcoBilling.Api.csproj --configuration Release --no-restore --output artifacts/api
 

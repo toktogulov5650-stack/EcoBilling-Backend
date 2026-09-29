@@ -61,6 +61,9 @@ public sealed class CalculateMonthlyChargeHandler(
             BillingCalculationPersistenceOutcome.MeterNotFound =>
                 Result<CalculateMonthlyChargeResult>.Failure(
                     ChargeErrors.MeterNotFound),
+            BillingCalculationPersistenceOutcome.MultipleMetersRequirePolicy =>
+                Result<CalculateMonthlyChargeResult>.Failure(
+                    ChargeErrors.MultipleMetersRequirePolicy),
             BillingCalculationPersistenceOutcome.PreviousReadingNotFound =>
                 Result<CalculateMonthlyChargeResult>.Failure(
                     ChargeErrors.PreviousReadingNotFound),

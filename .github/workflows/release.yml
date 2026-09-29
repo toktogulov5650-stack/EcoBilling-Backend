@@ -60,7 +60,7 @@ jobs:
         run: docker compose --env-file deploy/.env.example --file deploy/compose.yml config --quiet
 
       - name: Build container images
-        run: docker compose --env-file deploy/.env.example --file deploy/compose.yml build api worker migrations
+        run: docker compose --env-file deploy/.env.example --file deploy/compose.yml build api worker migrations postgres
 
       - name: Scan API image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -95,7 +95,7 @@ jobs:
       - name: Scan PostgreSQL image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: postgres:17-alpine
+          image-ref: ecobilling-postgres:latest
           format: table
           exit-code: "1"
           ignore-unfixed: true
@@ -132,7 +132,7 @@ jobs:
       - name: Generate PostgreSQL SBOM
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: postgres:17-alpine
+          image-ref: ecobilling-postgres:latest
           format: cyclonedx
           output: artifacts/sbom-postgres.cdx.json
           vuln-type: os,library

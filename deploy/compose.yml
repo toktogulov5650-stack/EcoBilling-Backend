@@ -15,7 +15,10 @@ x-database-connection: &database-connection
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: ecobilling-postgres:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.postgres
     environment:
       POSTGRES_DB: ecobilling
       POSTGRES_USER: ecobilling

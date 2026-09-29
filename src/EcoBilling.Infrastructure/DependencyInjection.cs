@@ -85,6 +85,8 @@ public static class DependencyInjection
         services.AddScoped<IDistrictFinancialSummaryReader, DistrictFinancialSummaryReader>();
         services.AddScoped<IResidentSelfServiceReader, ResidentSelfServiceReader>();
         services.AddScoped<IControllerWorklistReader, ControllerWorklistReader>();
+        services.AddScoped<IControllerDirectoryReader, ControllerDirectoryReader>();
+        services.AddScoped<IResidentDirectoryReader, ResidentDirectoryReader>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddSingleton<IRefreshTokenService, RefreshTokenService>();

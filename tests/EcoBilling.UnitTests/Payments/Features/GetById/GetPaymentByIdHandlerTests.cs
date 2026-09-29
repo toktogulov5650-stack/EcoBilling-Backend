@@ -81,5 +81,27 @@ public sealed class GetPaymentByIdHandlerTests
             ReceivedCancellationToken = cancellationToken;
             return Task.FromResult(payment);
         }
+
+        public Task<IReadOnlyList<Payment>> ListByAccountAsync(
+            AccountId accountId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Payment>>([]);
+
+        public Task<EcoBilling.Modules.Payments.Contracts.AccountFinancialSummary?>
+            GetFinancialSummaryAsync(
+                AccountId accountId,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<EcoBilling.Modules.Payments.Contracts.AccountFinancialSummary?>(
+                null);
+
+        public Task<PaymentRegistrationPersistenceResult> RegisterAsync(
+            Payment paymentToRegister,
+            string actorId,
+            string correlationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new PaymentRegistrationPersistenceResult(
+                    PaymentRegistrationPersistenceOutcome.Registered,
+                    paymentToRegister));
     }
 }

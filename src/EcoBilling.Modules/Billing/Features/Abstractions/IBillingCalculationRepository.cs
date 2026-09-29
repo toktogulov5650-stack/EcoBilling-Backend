@@ -34,5 +34,6 @@ public enum BillingCalculationPersistenceOutcome
     CurrentReadingNotFound = 6,
     TariffAssignmentNotFound = 7,
     TariffVersionNotFound = 8,
-    InvalidConsumption = 9
+    TariffPeriodChangeRequiresPolicy = 9,
+    InvalidConsumption = 10
 }

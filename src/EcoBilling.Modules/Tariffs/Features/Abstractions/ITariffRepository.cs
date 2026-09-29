@@ -7,4 +7,13 @@ public interface ITariffRepository
     Task<Tariff?> GetByIdAsync(
         TariffId tariffId,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Tariff>> ListAsync(
+        CancellationToken cancellationToken);
+
+    Task<TariffPersistenceResult> CreateAsync(
+        Tariff tariff,
+        string actorId,
+        string correlationId,
+        CancellationToken cancellationToken);
 }

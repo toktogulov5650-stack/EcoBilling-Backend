@@ -8,6 +8,7 @@ using EcoBilling.Modules.Controllers.Features.Directory;
 using EcoBilling.Modules.Controllers.Features.GetMyAssignments;
 using EcoBilling.Modules.Controllers.Features.GetProfile;
 using EcoBilling.Modules.Controllers.Features.GetWorklist;
+using EcoBilling.Modules.Controllers.Features.ListAssignments;
 using EcoBilling.Modules.Controllers.Features.RemoveAssignment;
 using EcoBilling.Modules.Identity.Domain;
 
@@ -40,6 +41,14 @@ public static class ControllerManagementEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        endpoints.MapGet(
+                "/api/v1/controllers/{controllerId:guid}/assignments",
+                ListControllerAssignmentsAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithName("ListControllerAssignments")
+            .WithTags("Controllers")
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         endpoints.MapPost(
                 "/api/v1/controllers/{controllerId:guid}/assignments",
@@ -117,6 +126,29 @@ public static class ControllerManagementEndpoints
 
         var result = await handler.Handle(
             new ControllerId(controllerId),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> ListControllerAssignmentsAsync(
+        Guid controllerId,
+        HttpContext httpContext,
+        ListControllerAssignmentsHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (controllerId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                ControllerErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new ListControllerAssignmentsQuery(
+                new ControllerId(controllerId)),
             cancellationToken);
 
         return result.IsFailure

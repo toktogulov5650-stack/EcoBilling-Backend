@@ -111,18 +111,17 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
                     PaymentRegistrationPersistenceOutcome.IdempotencyConflict);
             }
 
-            var existingAllocated = await dbContext.PaymentAllocations
+            var account = await dbContext.Accounts
                 .AsNoTracking()
-                .Where(allocation => allocation.PaymentId == existing.Id)
-                .SumAsync(
-                    allocation => (decimal?)allocation.Amount,
-                    cancellationToken) ?? 0m;
+                .SingleAsync(
+                    candidate => candidate.Id == existing.AccountId,
+                    cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
             return new PaymentRegistrationPersistenceResult(
                 PaymentRegistrationPersistenceOutcome.Replayed,
                 existing,
-                Math.Max(0m, existing.Amount.Value - existingAllocated),
+                account.Overpayment,
                 IsReplay: true);
         }
 
@@ -228,6 +227,6 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
         return new PaymentRegistrationPersistenceResult(
             PaymentRegistrationPersistenceOutcome.Registered,
             payment,
-            remaining);
+            account.Overpayment);
     }
 }

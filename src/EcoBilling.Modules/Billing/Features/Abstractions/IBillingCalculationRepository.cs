@@ -29,9 +29,10 @@ public enum BillingCalculationPersistenceOutcome
     Replayed = 1,
     AccountNotFound = 2,
     MeterNotFound = 3,
-    PreviousReadingNotFound = 4,
-    CurrentReadingNotFound = 5,
-    TariffAssignmentNotFound = 6,
-    TariffVersionNotFound = 7,
-    InvalidConsumption = 8
+    MultipleMetersRequirePolicy = 4,
+    PreviousReadingNotFound = 5,
+    CurrentReadingNotFound = 6,
+    TariffAssignmentNotFound = 7,
+    TariffVersionNotFound = 8,
+    InvalidConsumption = 9
 }

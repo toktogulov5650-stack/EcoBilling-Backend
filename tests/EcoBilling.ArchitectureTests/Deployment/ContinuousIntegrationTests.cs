@@ -13,6 +13,17 @@ public sealed class ContinuousIntegrationTests
         Assert.Contains("docker compose", workflow, StringComparison.Ordinal);
         Assert.Contains("config --quiet", workflow, StringComparison.Ordinal);
         Assert.Contains("build api worker migrations", workflow, StringComparison.Ordinal);
+        Assert.Contains(
+            "aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "uses: aquasecurity/trivy-action@v",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains("severity: CRITICAL,HIGH", workflow, StringComparison.Ordinal);
+        Assert.Contains("exit-code: \"1\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("image-ref: postgres:17-alpine", workflow, StringComparison.Ordinal);
         Assert.Contains("cancel-in-progress: true", workflow, StringComparison.Ordinal);
     }
 

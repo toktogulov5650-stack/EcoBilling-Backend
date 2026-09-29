@@ -155,10 +155,11 @@ public sealed class ResidentSelfServiceReader(EcoBillingDbContext dbContext)
             .Where(charge => charge.AccountId == typedAccountId)
             .SumAsync(charge => (decimal?)charge.Amount, cancellationToken) ?? 0m;
 
-        var totalPayments = await dbContext.Payments
+        var payments = await dbContext.Payments
             .AsNoTracking()
             .Where(payment => payment.AccountId == typedAccountId)
-            .SumAsync(payment => (decimal?)payment.Amount.Value, cancellationToken) ?? 0m;
+            .ToListAsync(cancellationToken);
+        var totalPayments = payments.Sum(payment => payment.Amount.Value);
 
         var allocated = await (
             from allocation in dbContext.PaymentAllocations.AsNoTracking()

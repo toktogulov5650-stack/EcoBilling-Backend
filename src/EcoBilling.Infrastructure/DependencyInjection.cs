@@ -1,4 +1,5 @@
 using EcoBilling.Infrastructure.Authentication;
+using EcoBilling.Infrastructure.Outbox;
 using EcoBilling.Infrastructure.Observability;
 using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.Infrastructure.Persistence.Reports;
@@ -75,9 +76,16 @@ public static class DependencyInjection
         services.AddScoped<IMeterReadingRepository, MeterReadingRepository>();
         services.AddScoped<ITariffRepository, TariffRepository>();
         services.AddScoped<ITariffVersionRepository, TariffVersionRepository>();
+        services.AddScoped<IAccountTariffAssignmentRepository, AccountTariffAssignmentRepository>();
         services.AddScoped<IChargeRepository, ChargeRepository>();
+        services.AddScoped<IBillingCalculationRepository, BillingCalculationRepository>();
+        services.AddScoped<IMonthlyBillingBatchProcessor, MonthlyBillingBatchProcessor>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IDistrictOperationalSummaryReader, DistrictOperationalSummaryReader>();
+        services.AddScoped<IDistrictFinancialSummaryReader, DistrictFinancialSummaryReader>();
+        services.AddScoped<IResidentSelfServiceReader, ResidentSelfServiceReader>();
+        services.AddScoped<IControllerWorklistReader, ControllerWorklistReader>();
+        services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
 

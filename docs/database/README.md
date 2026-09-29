@@ -239,9 +239,7 @@ infrastructure.outbox_messages:
 | retry_count | integer | NOT NULL, не меньше нуля |
 | last_error | varchar(2000) | nullable |
 
-Индекс (processed_at, occurred_at) поддерживает выборку ожидающих сообщений. Реальные
-producer, publisher, lease/locking, retry/backoff и dead-letter не фиксируются до появления
-утверждённой внешней интеграции. Provisioning директора Outbox-сообщение не создаёт.
+Индекс `(processed_at, occurred_at)` поддерживает выборку ожидающих сообщений. Billing и Payments создают OutboxMessage атомарно; dispatcher хранит retry state и использует PostgreSQL coordination. Внешний publisher/transport остаётся отдельной production-интеграцией.
 
 ## Интеграционные тесты
 

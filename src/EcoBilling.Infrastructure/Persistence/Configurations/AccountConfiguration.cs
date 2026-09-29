@@ -9,7 +9,12 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
 {
     public void Configure(EntityTypeBuilder<Account> builder)
     {
-        builder.ToTable("accounts", "accounts");
+        builder.ToTable(
+            "accounts",
+            "accounts",
+            table => table.HasCheckConstraint(
+                "ck_accounts_overpayment_non_negative",
+                "overpayment >= 0"));
 
         builder.HasKey(account => account.Id)
             .HasName("pk_accounts");
@@ -46,6 +51,12 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(account => account.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("timestamp with time zone")
+            .IsRequired();
+
+        builder.Property(account => account.Overpayment)
+            .HasColumnName("overpayment")
+            .HasColumnType("numeric(18,2)")
+            .HasDefaultValue(0m)
             .IsRequired();
 
         builder.HasIndex(account => account.Number)

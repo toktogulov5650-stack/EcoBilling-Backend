@@ -36,6 +36,9 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
 
     public DbSet<Controller> Controllers => Set<Controller>();
 
+    public DbSet<ControllerAssignment> ControllerAssignments =>
+        Set<ControllerAssignment>();
+
     public DbSet<ControllerCreationOperation> ControllerCreationOperations =>
         Set<ControllerCreationOperation>();
 

@@ -37,8 +37,7 @@ public static class ControllerManagementEndpoints
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         endpoints.MapDelete(
                 "/api/v1/controllers/{controllerId:guid}/assignments/{assignmentId:guid}",
@@ -103,6 +102,9 @@ public static class ControllerManagementEndpoints
         {
             return ApiProblemDetails.Create(httpContext, result.Error);
         }
+
+        httpContext.Response.Headers["Idempotency-Replayed"] =
+            result.Value.IsReplay ? "true" : "false";
 
         return Results.Json(
             new ControllerAssignmentResponse(

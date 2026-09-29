@@ -119,6 +119,18 @@ public sealed class MeterReadingRepository(EcoBillingDbContext dbContext)
                 return new ReadingPersistenceResult(
                     ReadingPersistenceOutcome.SupersededReadingNotFound);
             }
+
+            var alreadyCorrected = await dbContext.MeterReadings
+                .AsNoTracking()
+                .AnyAsync(
+                    existing => existing.SupersedesReadingId == superseded.Id,
+                    cancellationToken);
+            if (alreadyCorrected)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return new ReadingPersistenceResult(
+                    ReadingPersistenceOutcome.SupersededReadingAlreadyCorrected);
+            }
         }
         else
         {

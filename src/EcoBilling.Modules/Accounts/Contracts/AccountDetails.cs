@@ -5,4 +5,5 @@ public sealed record AccountDetails(
     Guid ResidentId,
     Guid AddressId,
     string AccountNumber,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    decimal Overpayment = 0m);

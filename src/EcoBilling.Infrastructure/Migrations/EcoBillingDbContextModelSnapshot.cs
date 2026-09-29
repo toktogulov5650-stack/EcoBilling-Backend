@@ -266,7 +266,7 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasColumnName("account_id");
 
                     b.Property<decimal>("Amount")
-                        .HasColumnType("numeric(18,2)")
+                        .HasColumnType("numeric")
                         .HasColumnName("amount");
 
                     b.Property<string>("CalculationVersion")
@@ -327,8 +327,6 @@ namespace EcoBilling.Infrastructure.Migrations
 
                     b.ToTable("charges", "billing", t =>
                         {
-                            t.HasCheckConstraint("ck_charges_amount_non_negative", "amount >= 0");
-
                             t.HasCheckConstraint("ck_charges_billing_period", "period_end > period_start");
 
                             t.HasCheckConstraint("ck_charges_consumption_non_negative", "consumption >= 0");
@@ -682,10 +680,6 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasDatabaseName("ux_meters_replaces_meter_id")
                         .HasFilter("replaces_meter_id IS NOT NULL");
 
-                    b.HasIndex("SerialNumber")
-                        .IsUnique()
-                        .HasDatabaseName("ux_meters_serial_number");
-
                     b.ToTable("meters", "meters");
                 });
 
@@ -799,7 +793,9 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasColumnName("meter_id");
 
                     b.Property<int>("Source")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
+                        .HasDefaultValue(2)
                         .HasColumnName("source");
 
                     b.Property<Guid?>("SupersedesReadingId")
@@ -807,7 +803,7 @@ namespace EcoBilling.Infrastructure.Migrations
                         .HasColumnName("supersedes_reading_id");
 
                     b.Property<decimal>("Value")
-                        .HasColumnType("numeric(18,3)")
+                        .HasColumnType("numeric")
                         .HasColumnName("value");
 
                     b.HasKey("Id")

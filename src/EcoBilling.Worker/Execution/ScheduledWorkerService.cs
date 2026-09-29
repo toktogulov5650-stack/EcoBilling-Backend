@@ -1,9 +1,11 @@
+using EcoBilling.Infrastructure.Concurrency;
 using Microsoft.Extensions.Options;
 
 namespace EcoBilling.Worker.Execution;
 
 public sealed class ScheduledWorkerService(
     IServiceScopeFactory scopeFactory,
+    IWorkerExecutionLock executionLock,
     IOptions<WorkerScheduleOptions> options,
     TimeProvider timeProvider,
     ILogger<ScheduledWorkerService> logger)
@@ -57,7 +59,22 @@ public sealed class ScheduledWorkerService(
             await using var scope = scopeFactory.CreateAsyncScope();
             var runner = scope.ServiceProvider.GetRequiredService<WorkerTaskRunner>();
             var task = scope.ServiceProvider.GetRequiredService<TTask>();
-            await runner.RunAsync(task, cancellationToken);
+
+            await using var lease = await executionLock.TryAcquireAsync(
+                task.Name,
+                cancellationToken);
+
+            if (lease is null)
+            {
+                logger.LogDebug(
+                    "Worker task {WorkerTaskName} skipped because another worker instance owns the distributed lock",
+                    task.Name);
+            }
+            else
+            {
+                await runner.RunAsync(task, cancellationToken);
+            }
+
             await Task.Delay(interval, timeProvider, cancellationToken);
         }
     }

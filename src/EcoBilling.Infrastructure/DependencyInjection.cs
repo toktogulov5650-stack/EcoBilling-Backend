@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IResidentPasswordResetRepository, ResidentPasswordResetRepository>();
         services.AddScoped<IControllerRepository, ControllerRepository>();
         services.AddScoped<IControllerCreationRepository, ControllerCreationRepository>();
+        services.AddScoped<IControllerAssignmentRepository, ControllerAssignmentRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IMeterRepository, MeterRepository>();

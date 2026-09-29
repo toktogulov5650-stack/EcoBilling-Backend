@@ -4,6 +4,7 @@ using EcoBilling.Infrastructure.Outbox;
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Billing.Domain;
 using EcoBilling.Modules.Billing.Features.Abstractions;
+using EcoBilling.Modules.Payments.Domain;
 using EcoBilling.Modules.Readings.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,10 +54,11 @@ public sealed class BillingCalculationRepository(
                 IsReplay: true);
         }
 
-        var accountExists = await dbContext.Accounts
-            .AsNoTracking()
-            .AnyAsync(account => account.Id == accountId, cancellationToken);
-        if (!accountExists)
+        var account = await dbContext.Accounts
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == accountId,
+                cancellationToken);
+        if (account is null)
         {
             await transaction.CommitAsync(cancellationToken);
             return new BillingCalculationPersistenceResult(
@@ -172,6 +174,67 @@ public sealed class BillingCalculationRepository(
 
         var charge = chargeResult.Value;
         dbContext.Charges.Add(charge);
+
+        var prepaidApplied = 0m;
+        if (account.Overpayment > 0m && charge.Amount > 0m)
+        {
+            var remainingCharge = charge.Amount;
+            var payments = await dbContext.Payments
+                .AsNoTracking()
+                .Where(payment => payment.AccountId == accountId)
+                .OrderBy(payment => payment.PaidAt)
+                .ThenBy(payment => payment.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            foreach (var payment in payments)
+            {
+                if (remainingCharge <= 0m)
+                {
+                    break;
+                }
+
+                var allocated = await dbContext.PaymentAllocations
+                    .AsNoTracking()
+                    .Where(allocation => allocation.PaymentId == payment.Id)
+                    .SumAsync(
+                        allocation => (decimal?)allocation.Amount,
+                        cancellationToken) ?? 0m;
+
+                var available = payment.Amount.Value - allocated;
+                if (available <= 0m)
+                {
+                    continue;
+                }
+
+                var amountToApply = Math.Min(available, remainingCharge);
+                var allocationResult = PaymentAllocation.Create(
+                    new PaymentAllocationId(Guid.NewGuid()),
+                    payment.Id,
+                    charge.Id,
+                    amountToApply,
+                    charge.CreatedAt);
+                if (allocationResult.IsFailure)
+                {
+                    throw new InvalidOperationException(
+                        allocationResult.Error.Description);
+                }
+
+                dbContext.PaymentAllocations.Add(allocationResult.Value);
+                prepaidApplied += amountToApply;
+                remainingCharge -= amountToApply;
+            }
+
+            if (prepaidApplied > 0m)
+            {
+                var consumed = account.ConsumeOverpayment(prepaidApplied);
+                if (consumed != prepaidApplied)
+                {
+                    throw new InvalidOperationException(
+                        "Account overpayment state does not match unallocated payment funds.");
+                }
+            }
+        }
+
         dbContext.AuditLogs.Add(
             new AuditLog(
                 Guid.NewGuid(),
@@ -192,6 +255,8 @@ public sealed class BillingCalculationRepository(
                         tariffVersionId = tariffVersion.Id.Value,
                         rate = tariffVersion.Rate.Value,
                         amount,
+                        prepaidApplied,
+                        outstandingAfterPrepayment = amount - prepaidApplied,
                         currency = charge.Currency,
                         calculationVersion = charge.CalculationVersion
                     }),
@@ -209,6 +274,8 @@ public sealed class BillingCalculationRepository(
                         periodStart,
                         periodEnd,
                         amount,
+                        prepaidApplied,
+                        outstandingAfterPrepayment = amount - prepaidApplied,
                         currency = charge.Currency
                     }),
                 charge.CreatedAt));

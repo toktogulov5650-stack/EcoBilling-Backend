@@ -89,14 +89,14 @@ dotnet test EcoBilling.slnx --configuration Release --no-build
 
 Последний зафиксированный полный verification pass до production-readiness hardening:
 
-- Architecture: 30/30;
-- Unit: 305/305;
-- PostgreSQL integration: 197/197;
+- Architecture: 34/34;
+- Unit: 307/307;
+- PostgreSQL integration: 206/206;
 - E2E: 4/4;
 - Docker Compose validation: passed;
 - images `api`, `worker`, `migrations`: built successfully.
 
-После изменений в production-readiness ветке эти значения должны быть подтверждены повторным CI.
+Production-readiness изменения подтверждены повторным зелёным CI.
 
 ## Основная HTTP-поверхность
 

@@ -4,6 +4,7 @@ using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Controllers.Domain;
 using EcoBilling.Modules.Controllers.Features.AssignAddress;
 using EcoBilling.Modules.Controllers.Features.CreateController;
+using EcoBilling.Modules.Controllers.Features.Directory;
 using EcoBilling.Modules.Controllers.Features.GetMyAssignments;
 using EcoBilling.Modules.Controllers.Features.GetProfile;
 using EcoBilling.Modules.Controllers.Features.GetWorklist;
@@ -19,6 +20,17 @@ public static class ControllerManagementEndpoints
     public static IEndpointRouteBuilder MapControllerManagementEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/controllers", ListControllersAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithName("ListControllers")
+            .WithTags("Controllers");
+
+        endpoints.MapGet("/api/v1/controllers/{controllerId:guid}", GetControllerByIdAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithName("GetControllerById")
+            .WithTags("Controllers")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         endpoints.MapPost("/api/v1/controllers", CreateAsync)
             .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
             .WithName("CreateController")
@@ -82,6 +94,34 @@ public static class ControllerManagementEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
+    }
+
+    private static async Task<IResult> ListControllersAsync(
+        ListControllersHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.Handle(cancellationToken);
+        return Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> GetControllerByIdAsync(
+        Guid controllerId,
+        HttpContext httpContext,
+        GetControllerByIdHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (controllerId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(httpContext, ControllerErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new ControllerId(controllerId),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> AssignAddressAsync(

@@ -34,7 +34,7 @@ Production secrets не должны храниться в Git, `.env`, image la
 - `ecobilling_runtime` — API/Worker, без CREATE/ALTER schema;
 - отдельный administrator — только bootstrap/операционные действия.
 
-В репозитории есть `deploy/postgres/bootstrap-production-roles.sql` и `deploy/postgres/grant-runtime.sql`.
+В репозитории есть `deploy/postgres/bootstrap-production-roles.sql`, `deploy/postgres/grant-runtime.sql` и `deploy/postgres/verify-production-roles.sql`.
 
 Пример bootstrap из защищённой operator shell:
 
@@ -52,7 +52,7 @@ psql "<admin-connection>" `
 psql "<admin-connection>" -f deploy/postgres/grant-runtime.sql
 ```
 
-Проверить отдельно: runtime connection не может менять schema; runtime выполняет API/Worker operations; runtime не может UPDATE/DELETE `infrastructure.audit_logs`; migrator применяет migrations; API/Worker не используют migrator credential.
+После grants выполните `deploy/postgres/verify-production-roles.sql`. Дополнительно проверьте runtime connection реальным smoke-запросом API/Worker: runtime не меняет schema, не может UPDATE/DELETE `infrastructure.audit_logs`, migrator применяет migrations, а API/Worker не используют migrator credential.
 
 ## 4. TLS / ingress / proxy
 

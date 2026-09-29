@@ -40,24 +40,26 @@ public sealed class AssignAddressHandler
             return Result<AssignAddressResult>.Failure(assignment.Error);
         }
 
-        var outcome = await repository.AssignAsync(
+        var persistenceResult = await repository.AssignAsync(
             assignment.Value,
             command.ActorId,
             command.CorrelationId,
             cancellationToken);
 
-        return outcome switch
+        return persistenceResult.Outcome switch
         {
             ControllerAssignmentPersistenceOutcome.Assigned =>
+                Success(
+                    assignment.Value,
+                    isReplay: false),
+            ControllerAssignmentPersistenceOutcome.Replayed =>
                 Result<AssignAddressResult>.Success(
                     new AssignAddressResult(
-                        assignment.Value.Id,
-                        assignment.Value.ControllerId,
-                        assignment.Value.AddressId,
-                        assignment.Value.CreatedAt)),
-            ControllerAssignmentPersistenceOutcome.AlreadyAssigned =>
-                Result<AssignAddressResult>.Failure(
-                    ControllerAssignmentErrors.AlreadyExists),
+                        persistenceResult.AssignmentId!,
+                        command.ControllerId,
+                        command.AddressId,
+                        persistenceResult.CreatedAt!.Value,
+                        IsReplay: true)),
             ControllerAssignmentPersistenceOutcome.ControllerNotFound =>
                 Result<AssignAddressResult>.Failure(
                     ControllerAssignmentErrors.ControllerNotFound),
@@ -65,7 +67,18 @@ public sealed class AssignAddressHandler
                 Result<AssignAddressResult>.Failure(
                     ControllerAssignmentErrors.AddressNotFound),
             _ => throw new InvalidOperationException(
-                $"Unknown controller assignment outcome: {outcome}.")
+                $"Unknown controller assignment outcome: {persistenceResult.Outcome}.")
         };
     }
+
+    private static Result<AssignAddressResult> Success(
+        ControllerAssignment assignment,
+        bool isReplay) =>
+        Result<AssignAddressResult>.Success(
+            new AssignAddressResult(
+                assignment.Id,
+                assignment.ControllerId,
+                assignment.AddressId,
+                assignment.CreatedAt,
+                isReplay));
 }

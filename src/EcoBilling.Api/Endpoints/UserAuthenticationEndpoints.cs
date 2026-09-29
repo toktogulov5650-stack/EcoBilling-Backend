@@ -13,7 +13,8 @@ public static class UserAuthenticationEndpoints
     {
         var group = endpoints.MapGroup("/api/v1/auth")
             .WithTags("Authentication")
-            .AllowAnonymous();
+            .AllowAnonymous()
+            .RequireRateLimiting(ApiRateLimitingOptions.AuthenticationPolicy);
 
         group.MapPost("/login", LoginAsync)
             .WithName("Login")

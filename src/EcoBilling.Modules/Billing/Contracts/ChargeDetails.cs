@@ -7,4 +7,9 @@ public sealed record ChargeDetails(
     DateOnly PeriodStart,
     DateOnly PeriodEnd,
     decimal Amount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    Guid? PreviousReadingId = null,
+    Guid? CurrentReadingId = null,
+    decimal Consumption = 0m,
+    string CalculationVersion = "v1",
+    string Currency = "KGS");

@@ -100,6 +100,11 @@ services:
       <<: *database-connection
       DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT:-Production}
       Observability__OtlpEndpoint: ${OTLP_ENDPOINT:-}
+      Worker__Schedules__MonthlyBillingEnabled: ${WORKER_MONTHLY_BILLING_ENABLED:-false}
+      Worker__Schedules__MonthlyBillingInterval: ${WORKER_MONTHLY_BILLING_INTERVAL:-1.00:00:00}
+      Worker__Schedules__OutboxEnabled: ${WORKER_OUTBOX_ENABLED:-false}
+      Worker__Schedules__OutboxInterval: ${WORKER_OUTBOX_INTERVAL:-00:01:00}
+      Worker__Schedules__OutboxBatchSize: ${WORKER_OUTBOX_BATCH_SIZE:-100}
     depends_on:
       postgres:
         condition: service_healthy

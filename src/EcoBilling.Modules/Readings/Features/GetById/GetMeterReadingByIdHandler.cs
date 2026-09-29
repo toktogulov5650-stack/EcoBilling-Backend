@@ -30,6 +30,10 @@ public sealed class GetMeterReadingByIdHandler(
                 reading.MeterId.Value,
                 reading.Value.Value,
                 reading.MeasuredAt,
-                reading.CreatedAt));
+                reading.CreatedAt,
+                reading.AuthorUserId?.Value,
+                reading.Source.ToString(),
+                reading.SupersedesReadingId?.Value,
+                reading.CorrectionReason));
     }
 }

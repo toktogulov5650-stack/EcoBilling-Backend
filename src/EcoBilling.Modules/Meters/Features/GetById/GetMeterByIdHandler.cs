@@ -29,6 +29,9 @@ public sealed class GetMeterByIdHandler(IMeterRepository meterRepository)
                 meter.AccountId.Value,
                 meter.SerialNumber.Value,
                 meter.InstalledAt,
-                meter.CreatedAt));
+                meter.CreatedAt,
+                meter.IsActive,
+                meter.RetiredAt,
+                meter.ReplacesMeterId?.Value));
     }
 }

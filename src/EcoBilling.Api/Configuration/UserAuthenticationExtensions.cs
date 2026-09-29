@@ -46,6 +46,16 @@ public static class UserAuthenticationExtensions
                 UserAuthenticationOptions.ControllerPolicy,
                 policy => ConfigureRolePolicy(policy, UserRole.Controller))
             .AddPolicy(
+                UserAuthenticationOptions.ControllerOrDirectorPolicy,
+                policy =>
+                {
+                    policy.AddAuthenticationSchemes(UserAuthenticationOptions.Scheme);
+                    policy.RequireAuthenticatedUser();
+                    policy.RequireRole(
+                        UserRole.Controller.ToString(),
+                        UserRole.Director.ToString());
+                })
+            .AddPolicy(
                 UserAuthenticationOptions.ResidentPolicy,
                 policy => ConfigureRolePolicy(policy, UserRole.Resident));
 

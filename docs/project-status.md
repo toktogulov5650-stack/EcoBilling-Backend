@@ -1,63 +1,95 @@
 # Статус реализации EcoBilling
 
-Состояние зафиксировано на 28 сентября 2026 года после финальной проверки безопасности и готовности. Этот документ отделяет работающие контракты от архитектурной основы для будущих функций.
+Состояние ветки `feature/complete-v1-backend` после завершения основной функциональной реализации и автоматизированного verification pass для v1. Последний CI полностью зелёный: restore, Release build, architecture tests, unit tests, PostgreSQL integration tests, E2E, Docker Compose validation и сборка container images прошли успешно.
 
-## Реализовано
+## Реализованный функционал
 
-| Область | Подтверждённый объём |
+| Область | Реализованный объём |
 |---|---|
-| Архитектура | Модульный монолит с проверяемыми направлениями `ProjectReference` и отдельными composition roots API и Worker. |
-| Identity | Вход по email/лицевому счёту, HS256 access JWT с ротацией `kid`, одноразовые hashed refresh sessions, token-family revoke/replay detection, persisted lockout и первичная установка пароля сотрудников. |
-| Director provisioning | Защищённый `POST /internal/v1/directors`, RS256 service JWT, защита `jti` от повтора, идемпотентность, атомарное создание и аудит. |
-| Controllers | Director-only `POST /api/v1/controllers`: JWT policy, обязательная идемпотентность, атомарные Identity/Profile/Operation/Audit, начальная тайна и полный E2E до первого входа Controller. |
-| Residents | Director-only создание Resident и сброс пароля: атомарные Identity/Profile/Address/Account/Operation/Audit, идемпотентность, отзыв refresh-сессий и полный E2E входа/восстановления доступа. |
-| Accounts и Addresses | Доменные модели, обязательные связи, нормализация, один Account на Resident в v1 и PostgreSQL constraints без финансового Balance. |
-| Meters и Readings | Минимальные доменные и persistence-модели без неподтверждённого жизненного цикла и mutation-сценариев. |
-| Tariffs | Tariff и неизменяемые непересекающиеся версии ставок без административного API. |
-| Billing | Минимальная запись Charge и защита точного дубля периода без формулы расчёта. |
-| Payments | Подтверждённый Payment с уникальным idempotency key без провайдерского callback и распределения оплаты. |
-| Reports | Read-only операционная сводка количества сущностей без финансовых расчётов и HTTP endpoint. |
-| Audit и Outbox | Append-only AuditLog для provisioning и persistence-основа Outbox без producer/dispatcher. |
-| Worker | Общий runner с cancellation, ограниченными retry, логами, traces и metrics; реальные задания не зарегистрированы. |
-| Эксплуатация | JSON-логи, OpenTelemetry, liveness/readiness, Docker Compose, отдельный migration job и CI с PostgreSQL. |
-| E2E | Provisioning Director, создание и вход Controller/Resident, идемпотентность и отсутствие публичной регистрации проверяются через реальный HTTP pipeline и PostgreSQL. |
+| Архитектура | Модульный монолит, отдельные composition roots API и Worker, PostgreSQL/EF Core/Npgsql, SharedKernel. |
+| Identity | Email/account-number login, HS256 access JWT, refresh rotation/replay protection, lockout, initial password setup, role policies и rate limiting authentication endpoints. |
+| Director | Provisioning через внутренний RS256 service JWT и self-profile endpoint. |
+| Controllers | Создание Director-ом, directory endpoints, профиль, назначения на Address, удаление назначения, список назначений, self assignments и worklist. |
+| Residents | Создание и password reset Director-ом, directory endpoints, self-service profile/account/meters/readings/charges/payments/financial summary. |
+| Accounts / Addresses | Account и Address lookup, Account overpayment как отдельное финансовое состояние v1. |
+| Meters | Создание, получение, список по Account, вывод старого Meter из эксплуатации и создание replacement Meter с историей связи. |
+| Readings | Автор/источник/время, resource-based доступ Controller, запрет уменьшения обычного показания, backdated правила, отдельные correction записи без перезаписи истории. |
+| Tariffs | Создание Tariff, immutable TariffVersion, закрытие периода версии, история версий, назначение Tariff на Account, история и закрытие assignment. |
+| Billing | Календарный месяц Asia/Bishkek, разница показаний × TariffVersion rate, KGS, AwayFromZero 2 decimals, сохранение входных readings/version/calculation version, защита от повторного начисления. |
+| Meter replacement billing | Если период пересекает несколько Meter, расчёт явно блокируется до утверждения отдельного правила вместо скрытого предположения. |
+| Payments | Ручной подтверждённый платеж Director-ом, обязательный Idempotency-Key, conflict detection по semantic request, распределение на старейшие Charges, PaymentAllocation и Account overpayment. |
+| Overpayment | Остаток Payment хранится на Account и автоматически применяется к последующим Charges через PaymentAllocation. |
+| Reports | Operational summary и financial summary: charges, payments, debt, overpayment, consumption и показатели Controller. |
+| Audit | Mutation-сценарии записывают AuditLog атомарно с бизнес-изменением; AuditLog остаётся append-only. |
+| Outbox | Billing/Payment создают OutboxMessage атомарно; dispatcher поддерживает retry state и distributed coordination. Внешний publisher не подменяется фиктивной доставкой и должен быть подключён после выбора transport/provider. |
+| Worker | Monthly billing batch, Outbox task, retry runner, конфигурируемые schedules и PostgreSQL distributed lock между экземплярами Worker. |
+| API | RFC 7807 Problem Details, correlation IDs, Swagger/OpenAPI только Development, role policies и resource checks. |
 
-## Текущая HTTP-поверхность
+## Основная HTTP-поверхность
 
-Production API предоставляет только:
+### Authentication
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/revoke`
+- `POST /api/v1/auth/setup-password`
 
-- `GET /health/live`;
-- `GET /health/ready`;
-- `GET /health`;
-- `POST /internal/v1/directors`;
-- `POST /api/v1/auth/login`;
-- `POST /api/v1/auth/refresh`;
-- `POST /api/v1/auth/revoke`;
-- `POST /api/v1/auth/setup-password`;
-- `POST /api/v1/controllers`.
-- `POST /api/v1/residents`.
-- `PUT /api/v1/residents/{residentId}/password`.
+### Director / management
+- `GET /api/v1/directors/me/profile`
+- `GET|POST /api/v1/controllers`
+- `GET /api/v1/controllers/{controllerId}`
+- `GET|POST /api/v1/controllers/{controllerId}/assignments`
+- `DELETE /api/v1/controllers/{controllerId}/assignments/{assignmentId}`
+- `GET|POST /api/v1/residents`
+- `GET /api/v1/residents/{residentId}`
+- `PUT /api/v1/residents/{residentId}/password`
+- Account/Address/Meter/Tariff/Billing/Payment/Report management endpoints.
 
-OpenAPI публикуется только в `Development`. Полный контракт описан в [документации API](api/README.md).
+### Controller
+- `GET /api/v1/controllers/me/profile`
+- `GET /api/v1/controllers/me/assignments`
+- `GET /api/v1/controllers/me/worklist`
+- `POST /api/v1/meters/{meterId}/readings` with assignment-based access check.
 
-## Не реализовано
+### Resident
+- `GET /api/v1/me/profile`
+- `GET /api/v1/me/account`
+- `GET /api/v1/me/meters`
+- `GET /api/v1/me/readings`
+- `GET /api/v1/me/charges`
+- `GET /api/v1/me/payments`
+- `GET /api/v1/me/financial`
 
-- публичная регистрация — запрещена архитектурой;
-- восстановление credentials Controller/Director и немедленный deny-list уже выпущенных access JWT;
-- изменение профилей Resident/Controller;
-- назначения контроллеров и resource-based доступ к жителям;
-- пользовательские endpoints профилей, счетов, счётчиков, показаний, тарифов, начислений и платежей;
-- жизненный цикл и замена счётчика;
-- внесение и исправление показаний;
-- административное управление тарифами;
-- формула начисления, перерасчёт и финансовое состояние Account;
-- платёжный провайдер, подпись callback, частичная оплата, возвраты и сверка;
-- финансовые отчёты и экспорт;
-- реальные Worker jobs и Outbox dispatcher;
-- production backup/restore, RPO/RTO/SLA, alert thresholds и политика хранения данных.
+## Что намеренно не симулируется
 
-Причины ожидания пользовательских E2E-сценариев перечислены в [матрице покрытия](testing/end-to-end-coverage.md). Неподтверждённые решения находятся в [открытом реестре](architecture/open-decisions.md).
+Следующие возможности не могут быть качественно завершены кодом без отдельного утверждённого внешнего решения:
 
-## Готовность
+- платёжный provider callback/signature/refund/reconciliation;
+- конкретный внешний Outbox transport/publisher;
+- сложная billing formula v2+ (льготы, нормативы, пени и перерасчёты);
+- неоднозначное начисление месяца, пересекающего замену Meter;
+- production secret store и PostgreSQL role model;
+- TLS/ingress/network policy конкретной площадки;
+- backup/restore, RPO/RTO/SLA;
+- telemetry backend, dashboards и alert thresholds;
+- retention policy и тяжёлые report exports.
 
-Сборка, автоматические тесты, миграции чистой базы и контейнерный контур являются проверяемой технической основой. Финальная проверка подтвердила audit NuGet, SHA-pinning CI, host allowlist и безопасное логирование ошибок Worker, но production-решение остаётся **NO-GO** до закрытия блокеров из [отчёта безопасности](security/README.md) и обязательных решений реестра.
+Для этих пунктов код не создаёт фиктивное успешное поведение.
+
+## Verification status
+
+Автоматизированный verification pass завершён успешно:
+
+1. `dotnet restore` — успешно;
+2. Release build — успешно;
+3. EF Core migrations и ModelSnapshot синхронизированы;
+4. Architecture tests — 30/30;
+5. Unit tests — 305/305;
+6. PostgreSQL integration tests — 197/197;
+7. E2E journeys — 4/4;
+8. Docker Compose validation — успешно;
+9. container images `api`, `worker`, `migrations` — успешно;
+10. GitHub Actions CI — зелёный.
+
+Итого автоматизированных тестов: 536/536.
+
+Ветка является проверенным v1 backend candidate. До фактического production deployment отдельно должны быть утверждены и настроены внешние operational-зависимости из раздела «Что намеренно не симулируется»: secrets, ingress/TLS, backup/restore, observability backend, внешний Outbox transport и payment provider integration, если они требуются для выбранной площадки.

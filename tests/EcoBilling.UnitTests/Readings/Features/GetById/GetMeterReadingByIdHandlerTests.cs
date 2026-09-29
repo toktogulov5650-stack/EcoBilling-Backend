@@ -79,5 +79,21 @@ public sealed class GetMeterReadingByIdHandlerTests
             ReceivedCancellationToken = cancellationToken;
             return Task.FromResult(reading);
         }
+
+        public Task<IReadOnlyList<MeterReading>> ListByMeterIdAsync(
+            MeterId meterId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<MeterReading>>([]);
+
+        public Task<ReadingPersistenceResult> AddAsync(
+            MeterReading readingToAdd,
+            EcoBilling.Modules.Controllers.Domain.ControllerId? controllerId,
+            bool actorIsDirector,
+            string correlationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new ReadingPersistenceResult(
+                    ReadingPersistenceOutcome.Added,
+                    readingToAdd.Id));
     }
 }

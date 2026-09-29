@@ -24,7 +24,8 @@ public sealed class Account
         ResidentId = residentId;
         AddressId = addressId;
         Number = number;
-        CreatedAt = createdAt;
+        CreatedAt = createdAt.ToUniversalTime();
+        Overpayment = 0m;
     }
 
     public AccountId Id { get; private set; }
@@ -36,6 +37,8 @@ public sealed class Account
     public AccountNumber Number { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
+
+    public decimal Overpayment { get; private set; }
 
     public static Result<Account> Create(
         AccountId id,
@@ -60,6 +63,28 @@ public sealed class Account
                 residentId,
                 addressId,
                 number.Value,
-                createdAt.ToUniversalTime()));
+                createdAt));
+    }
+
+    public void AddOverpayment(decimal amount)
+    {
+        if (amount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount));
+        }
+
+        Overpayment = checked(Overpayment + amount);
+    }
+
+    public decimal ConsumeOverpayment(decimal amount)
+    {
+        if (amount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount));
+        }
+
+        var consumed = Math.Min(Overpayment, amount);
+        Overpayment -= consumed;
+        return consumed;
     }
 }

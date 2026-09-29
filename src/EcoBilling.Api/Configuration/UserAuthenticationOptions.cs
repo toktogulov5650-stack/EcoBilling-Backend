@@ -7,6 +7,7 @@ public sealed class UserAuthenticationOptions
     public const string AuthenticatedPolicy = "User.Authenticated";
     public const string DirectorPolicy = "User.Director";
     public const string ControllerPolicy = "User.Controller";
+    public const string ControllerOrDirectorPolicy = "User.ControllerOrDirector";
     public const string ResidentPolicy = "User.Resident";
 
     public string Issuer { get; init; } = string.Empty;

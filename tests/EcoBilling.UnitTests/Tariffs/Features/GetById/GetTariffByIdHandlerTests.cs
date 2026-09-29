@@ -73,5 +73,19 @@ public sealed class GetTariffByIdHandlerTests
             ReceivedCancellationToken = cancellationToken;
             return Task.FromResult(tariff);
         }
+
+        public Task<IReadOnlyList<Tariff>> ListAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Tariff>>([]);
+
+        public Task<TariffPersistenceResult> CreateAsync(
+            Tariff tariffToCreate,
+            string actorId,
+            string correlationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new TariffPersistenceResult(
+                    TariffPersistenceOutcome.Created,
+                    tariffToCreate.Id));
     }
 }

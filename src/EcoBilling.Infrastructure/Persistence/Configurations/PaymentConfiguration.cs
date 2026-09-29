@@ -43,7 +43,7 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.Property(payment => payment.IdempotencyKey)
             .HasColumnName("idempotency_key")
-            .HasColumnType("text")
+            .HasMaxLength(PaymentIdempotencyKey.MaximumLength)
             .HasConversion(
                 key => key.Value,
                 value => PaymentIdempotencyKey.Create(value).Value)

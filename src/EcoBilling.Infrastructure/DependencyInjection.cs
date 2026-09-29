@@ -1,4 +1,6 @@
 using EcoBilling.Infrastructure.Authentication;
+using EcoBilling.Infrastructure.Concurrency;
+using EcoBilling.Infrastructure.Outbox;
 using EcoBilling.Infrastructure.Observability;
 using EcoBilling.Infrastructure.Persistence;
 using EcoBilling.Infrastructure.Persistence.Reports;
@@ -68,15 +70,27 @@ public static class DependencyInjection
         services.AddScoped<IResidentPasswordResetRepository, ResidentPasswordResetRepository>();
         services.AddScoped<IControllerRepository, ControllerRepository>();
         services.AddScoped<IControllerCreationRepository, ControllerCreationRepository>();
+        services.AddScoped<IControllerAssignmentRepository, ControllerAssignmentRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
         services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IMeterRepository, MeterRepository>();
         services.AddScoped<IMeterReadingRepository, MeterReadingRepository>();
         services.AddScoped<ITariffRepository, TariffRepository>();
         services.AddScoped<ITariffVersionRepository, TariffVersionRepository>();
+        services.AddScoped<IAccountTariffAssignmentRepository, AccountTariffAssignmentRepository>();
         services.AddScoped<IChargeRepository, ChargeRepository>();
+        services.AddScoped<IBillingCalculationRepository, BillingCalculationRepository>();
+        services.AddScoped<IMonthlyBillingBatchProcessor, MonthlyBillingBatchProcessor>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IDistrictOperationalSummaryReader, DistrictOperationalSummaryReader>();
+        services.AddScoped<IDistrictFinancialSummaryReader, DistrictFinancialSummaryReader>();
+        services.AddScoped<IResidentSelfServiceReader, ResidentSelfServiceReader>();
+        services.AddScoped<IControllerWorklistReader, ControllerWorklistReader>();
+        services.AddScoped<IControllerDirectoryReader, ControllerDirectoryReader>();
+        services.AddScoped<IResidentDirectoryReader, ResidentDirectoryReader>();
+        services.AddScoped<IDirectorProfileReader, DirectorProfileReader>();
+        services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
+        services.AddSingleton<IWorkerExecutionLock, PostgreSqlWorkerExecutionLock>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
 

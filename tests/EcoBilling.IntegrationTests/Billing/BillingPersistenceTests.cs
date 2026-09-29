@@ -46,9 +46,9 @@ public sealed class BillingPersistenceTests
         Assert.True(await reader.ReadAsync());
         Assert.Equal("billing", reader.GetString(0));
         Assert.Equal("billing.charges", reader.GetString(1));
-        Assert.Equal(4, reader.GetInt64(2));
-        Assert.Equal(3, reader.GetInt64(3));
-        Assert.Equal(7, reader.GetInt64(4));
+        Assert.Equal(7, reader.GetInt64(2));
+        Assert.Equal(5, reader.GetInt64(3));
+        Assert.Equal(10, reader.GetInt64(4));
         Assert.Equal("numeric", reader.GetString(5));
     }
 

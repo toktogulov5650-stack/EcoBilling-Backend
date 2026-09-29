@@ -46,13 +46,38 @@ internal sealed class MeterConfiguration : IEntityTypeConfiguration<Meter>
             .HasColumnType("timestamp with time zone")
             .IsRequired();
 
+        builder.Property(meter => meter.IsActive)
+            .HasColumnName("is_active")
+            .IsRequired();
+
+        builder.Property(meter => meter.RetiredAt)
+            .HasColumnName("retired_at")
+            .HasColumnType("timestamp with time zone");
+
+        builder.Property(meter => meter.ReplacesMeterId)
+            .HasColumnName("replaces_meter_id")
+            .HasConversion(
+                meterId => meterId == null ? (Guid?)null : meterId.Value,
+                value => value == null ? null : new MeterId(value.Value));
+
         builder.HasIndex(meter => meter.AccountId)
             .HasDatabaseName("ix_meters_account_id");
+
+        builder.HasIndex(meter => meter.ReplacesMeterId)
+            .IsUnique()
+            .HasFilter("replaces_meter_id IS NOT NULL")
+            .HasDatabaseName("ux_meters_replaces_meter_id");
 
         builder.HasOne<Account>()
             .WithMany()
             .HasForeignKey(meter => meter.AccountId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_meters_accounts_account_id");
+
+        builder.HasOne<Meter>()
+            .WithMany()
+            .HasForeignKey(meter => meter.ReplacesMeterId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("fk_meters_meters_replaces_meter_id");
     }
 }

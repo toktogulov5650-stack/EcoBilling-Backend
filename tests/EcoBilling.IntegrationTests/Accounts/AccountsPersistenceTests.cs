@@ -37,7 +37,7 @@ public sealed class AccountsPersistenceTests
         Assert.True(await reader.ReadAsync());
         Assert.Equal("accounts", reader.GetString(0));
         Assert.Equal("accounts.accounts", reader.GetString(1));
-        Assert.Equal(3, reader.GetInt64(2));
+        Assert.Equal(4, reader.GetInt64(2));
         Assert.Equal(4, reader.GetInt64(3));
     }
 

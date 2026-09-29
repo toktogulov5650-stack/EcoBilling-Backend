@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using EcoBilling.Api.Configuration;
 using EcoBilling.Modules.Residents.Domain;
 using EcoBilling.Modules.Residents.Features.CreateResident;
+using EcoBilling.Modules.Residents.Features.Directory;
 using EcoBilling.Modules.Residents.Features.ResetPassword;
 
 namespace EcoBilling.Api.Endpoints;
@@ -13,6 +14,17 @@ public static class ResidentManagementEndpoints
     public static IEndpointRouteBuilder MapResidentManagementEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/residents", ListResidentsAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithName("ListResidents")
+            .WithTags("Residents");
+
+        endpoints.MapGet("/api/v1/residents/{residentId:guid}", GetResidentByIdAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithName("GetResidentById")
+            .WithTags("Residents")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         endpoints.MapPost("/api/v1/residents", CreateAsync)
             .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
             .WithName("CreateResident")
@@ -82,6 +94,36 @@ public static class ResidentManagementEndpoints
             new ResetResidentPasswordResponse(
                 result.Value.OperationId.Value,
                 "reset"));
+    }
+
+    private static async Task<IResult> ListResidentsAsync(
+        ListResidentsHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.Handle(cancellationToken);
+        return Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> GetResidentByIdAsync(
+        Guid residentId,
+        HttpContext httpContext,
+        GetResidentByIdHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (residentId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                EcoBilling.Modules.Residents.Domain.ResidentErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new EcoBilling.Modules.Residents.Domain.ResidentId(residentId),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> CreateAsync(

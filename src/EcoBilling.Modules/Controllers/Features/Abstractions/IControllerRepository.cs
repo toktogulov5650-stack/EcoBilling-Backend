@@ -5,6 +5,10 @@ namespace EcoBilling.Modules.Controllers.Features.Abstractions;
 
 public interface IControllerRepository
 {
+    Task<Controller?> GetByIdAsync(
+        ControllerId controllerId,
+        CancellationToken cancellationToken);
+
     Task<Controller?> GetByUserIdAsync(
         UserId userId,
         CancellationToken cancellationToken);

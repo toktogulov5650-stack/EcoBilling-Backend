@@ -80,5 +80,36 @@ public sealed class GetTariffVersionByIdHandlerTests
             ReceivedCancellationToken = cancellationToken;
             return Task.FromResult(version);
         }
+
+        public Task<TariffVersion?> GetEffectiveAsync(
+            TariffId tariffId,
+            DateOnly date,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<TariffVersion?>(null);
+
+        public Task<IReadOnlyList<TariffVersion>> ListByTariffIdAsync(
+            TariffId tariffId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<TariffVersion>>([]);
+
+        public Task<TariffVersionPersistenceResult> CreateAsync(
+            TariffVersion versionToCreate,
+            string actorId,
+            string correlationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new TariffVersionPersistenceResult(
+                    TariffVersionPersistenceOutcome.Created,
+                    versionToCreate.Id));
+
+        public Task<TariffVersionCloseOutcome> CloseAsync(
+            TariffId tariffId,
+            TariffVersionId tariffVersionId,
+            DateOnly effectiveTo,
+            string actorId,
+            string correlationId,
+            DateTimeOffset changedAt,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(TariffVersionCloseOutcome.Closed);
     }
 }

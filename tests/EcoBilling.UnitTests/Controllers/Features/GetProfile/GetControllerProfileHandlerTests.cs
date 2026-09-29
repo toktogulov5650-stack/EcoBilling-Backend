@@ -77,6 +77,11 @@ public sealed class GetControllerProfileHandlerTests
 
         public CancellationToken ReceivedCancellationToken { get; private set; }
 
+        public Task<Controller?> GetByIdAsync(
+            ControllerId controllerId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<Controller?>(null);
+
         public Task<Controller?> GetByUserIdAsync(
             UserId userId,
             CancellationToken cancellationToken)

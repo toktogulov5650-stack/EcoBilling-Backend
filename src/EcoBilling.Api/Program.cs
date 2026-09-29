@@ -5,10 +5,50 @@ using EcoBilling.Api.InternalEndpoints;
 using EcoBilling.Api.Middleware;
 using EcoBilling.Infrastructure;
 using EcoBilling.Infrastructure.Observability;
+using EcoBilling.Modules.Controllers.Features.AssignAddress;
 using EcoBilling.Modules.Controllers.Features.CreateController;
+using EcoBilling.Modules.Controllers.Features.Directory;
+using EcoBilling.Modules.Controllers.Features.GetMyAssignments;
+using EcoBilling.Modules.Controllers.Features.GetProfile;
+using EcoBilling.Modules.Controllers.Features.GetWorklist;
+using EcoBilling.Modules.Controllers.Features.ListAssignments;
+using EcoBilling.Modules.Controllers.Features.RemoveAssignment;
+using EcoBilling.Modules.Identity.Application.GetDirectorProfile;
 using EcoBilling.Modules.Identity.Application.ProvisionDirector;
+using EcoBilling.Modules.Meters.Features.Create;
+using EcoBilling.Modules.Meters.Features.GetById;
+using EcoBilling.Modules.Meters.Features.ListByAccount;
+using EcoBilling.Modules.Meters.Features.Replace;
+using EcoBilling.Modules.Readings.Features.Add;
+using EcoBilling.Modules.Readings.Features.GetById;
+using EcoBilling.Modules.Readings.Features.ListByMeter;
+using EcoBilling.Modules.Tariffs.Features.AssignToAccount;
+using EcoBilling.Modules.Tariffs.Features.CloseAssignment;
+using EcoBilling.Modules.Tariffs.Features.CloseVersion;
+using EcoBilling.Modules.Tariffs.Features.Create;
+using EcoBilling.Modules.Tariffs.Features.CreateVersion;
+using EcoBilling.Modules.Tariffs.Features.GetById;
+using EcoBilling.Modules.Tariffs.Features.GetForAccount;
+using EcoBilling.Modules.Tariffs.Features.GetVersionById;
+using EcoBilling.Modules.Tariffs.Features.List;
+using EcoBilling.Modules.Tariffs.Features.ListAssignments;
+using EcoBilling.Modules.Tariffs.Features.ListVersions;
+using EcoBilling.Modules.Billing.Features.CalculateMonthly;
+using EcoBilling.Modules.Billing.Features.GetById;
+using EcoBilling.Modules.Billing.Features.ListByAccount;
+using EcoBilling.Modules.Payments.Features.GetById;
+using EcoBilling.Modules.Payments.Features.GetFinancialSummary;
+using EcoBilling.Modules.Payments.Features.ListByAccount;
+using EcoBilling.Modules.Payments.Features.RegisterManual;
+using EcoBilling.Modules.Reports.Features.GetFinancialSummary;
+using EcoBilling.Modules.Reports.Features.GetOperationalSummary;
+using EcoBilling.Modules.Accounts.Features.GetAddressById;
+using EcoBilling.Modules.Accounts.Features.GetByNumber;
 using EcoBilling.Modules.Residents.Features.CreateResident;
+using EcoBilling.Modules.Residents.Features.Directory;
 using EcoBilling.Modules.Residents.Features.ResetPassword;
+using EcoBilling.Modules.Residents.Features.GetProfile;
+using EcoBilling.Modules.Residents.Features.SelfService;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -75,6 +115,7 @@ builder.Services.AddSwaggerGen(options =>
         [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
 });
+builder.Services.AddEcoBillingRateLimiting(builder.Configuration);
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
@@ -113,9 +154,56 @@ builder.Services.AddInternalServiceAuthentication(builder.Configuration);
 builder.Services.AddUserAuthentication(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ProvisionDirectorHandler>();
+builder.Services.AddScoped<GetDirectorProfileHandler>();
 builder.Services.AddScoped<CreateControllerHandler>();
+builder.Services.AddScoped<ListControllersHandler>();
+builder.Services.AddScoped<GetControllerByIdHandler>();
+builder.Services.AddScoped<AssignAddressHandler>();
+builder.Services.AddScoped<RemoveAssignmentHandler>();
+builder.Services.AddScoped<GetMyAssignmentsHandler>();
+builder.Services.AddScoped<GetControllerProfileHandler>();
+builder.Services.AddScoped<GetControllerWorklistHandler>();
+builder.Services.AddScoped<ListControllerAssignmentsHandler>();
 builder.Services.AddScoped<CreateResidentHandler>();
+builder.Services.AddScoped<ListResidentsHandler>();
+builder.Services.AddScoped<GetResidentByIdHandler>();
 builder.Services.AddScoped<ResetResidentPasswordHandler>();
+builder.Services.AddScoped<GetResidentProfileHandler>();
+builder.Services.AddScoped<GetResidentAccountHandler>();
+builder.Services.AddScoped<ListResidentMetersHandler>();
+builder.Services.AddScoped<ListResidentReadingsHandler>();
+builder.Services.AddScoped<ListResidentChargesHandler>();
+builder.Services.AddScoped<ListResidentPaymentsHandler>();
+builder.Services.AddScoped<GetResidentFinancialHandler>();
+builder.Services.AddScoped<CreateMeterHandler>();
+builder.Services.AddScoped<GetMeterByIdHandler>();
+builder.Services.AddScoped<ReplaceMeterHandler>();
+builder.Services.AddScoped<ListMetersByAccountHandler>();
+builder.Services.AddScoped<AddMeterReadingHandler>();
+builder.Services.AddScoped<GetMeterReadingByIdHandler>();
+builder.Services.AddScoped<ListReadingsByMeterHandler>();
+builder.Services.AddScoped<CreateTariffHandler>();
+builder.Services.AddScoped<GetTariffByIdHandler>();
+builder.Services.AddScoped<GetTariffVersionByIdHandler>();
+builder.Services.AddScoped<GetAccountTariffHandler>();
+builder.Services.AddScoped<CreateTariffVersionHandler>();
+builder.Services.AddScoped<AssignTariffToAccountHandler>();
+builder.Services.AddScoped<CloseTariffAssignmentHandler>();
+builder.Services.AddScoped<CloseTariffVersionHandler>();
+builder.Services.AddScoped<ListAccountTariffAssignmentsHandler>();
+builder.Services.AddScoped<ListTariffsHandler>();
+builder.Services.AddScoped<ListTariffVersionsHandler>();
+builder.Services.AddScoped<CalculateMonthlyChargeHandler>();
+builder.Services.AddScoped<GetChargeByIdHandler>();
+builder.Services.AddScoped<ListChargesByAccountHandler>();
+builder.Services.AddScoped<RegisterManualPaymentHandler>();
+builder.Services.AddScoped<GetPaymentByIdHandler>();
+builder.Services.AddScoped<ListPaymentsByAccountHandler>();
+builder.Services.AddScoped<GetAccountFinancialSummaryHandler>();
+builder.Services.AddScoped<GetDistrictOperationalSummaryHandler>();
+builder.Services.AddScoped<GetDistrictFinancialSummaryHandler>();
+builder.Services.AddScoped<GetAccountByNumberHandler>();
+builder.Services.AddScoped<GetAddressByIdHandler>();
 
 var app = builder.Build();
 
@@ -139,15 +227,25 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapEcoBillingHealthEndpoints();
 
 app.MapDirectorProvisioningEndpoints();
+app.MapDirectorSelfServiceEndpoints();
 app.MapUserAuthenticationEndpoints();
 app.MapControllerManagementEndpoints();
+app.MapAccountManagementEndpoints();
 app.MapResidentManagementEndpoints();
+app.MapResidentSelfServiceEndpoints();
+app.MapMeterManagementEndpoints();
+app.MapReadingEndpoints();
+app.MapTariffManagementEndpoints();
+app.MapBillingEndpoints();
+app.MapPaymentEndpoints();
+app.MapReportEndpoints();
 
 app.Run();
 

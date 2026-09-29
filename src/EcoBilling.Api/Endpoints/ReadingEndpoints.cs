@@ -2,6 +2,7 @@ using EcoBilling.Api.Configuration;
 using EcoBilling.Modules.Meters.Domain;
 using EcoBilling.Modules.Readings.Domain;
 using EcoBilling.Modules.Readings.Features.Add;
+using EcoBilling.Modules.Readings.Features.GetById;
 using EcoBilling.Modules.Readings.Features.ListByMeter;
 
 namespace EcoBilling.Api.Endpoints;
@@ -11,6 +12,12 @@ public static class ReadingEndpoints
     public static IEndpointRouteBuilder MapReadingEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/readings/{readingId:guid}", GetByIdAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Readings")
+            .WithName("GetMeterReadingById")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         endpoints.MapPost("/api/v1/meters/{meterId:guid}/readings", AddAsync)
             .RequireAuthorization(UserAuthenticationOptions.ControllerOrDirectorPolicy)
             .WithTags("Readings")
@@ -22,6 +29,26 @@ public static class ReadingEndpoints
             .WithName("ListMeterReadings");
 
         return endpoints;
+    }
+
+    private static async Task<IResult> GetByIdAsync(
+        Guid readingId,
+        HttpContext httpContext,
+        GetMeterReadingByIdHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (readingId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(httpContext, MeterReadingErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new GetMeterReadingByIdQuery(new MeterReadingId(readingId)),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> AddAsync(

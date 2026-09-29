@@ -35,6 +35,12 @@ public sealed class ContinuousIntegrationTests
         AssertCommonVerification(workflow);
         Assert.Contains("dotnet publish src/EcoBilling.Api", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet publish src/EcoBilling.Worker", workflow, StringComparison.Ordinal);
+        Assert.Contains("build api worker migrations", workflow, StringComparison.Ordinal);
+        Assert.Contains(
+            "aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains("image-ref: postgres:17-alpine", workflow, StringComparison.Ordinal);
         Assert.Contains(
             "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7",
             workflow,

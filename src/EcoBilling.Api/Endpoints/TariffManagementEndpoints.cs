@@ -3,6 +3,7 @@ using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Tariffs.Domain;
 using EcoBilling.Modules.Tariffs.Features.AssignToAccount;
 using EcoBilling.Modules.Tariffs.Features.CloseAssignment;
+using EcoBilling.Modules.Tariffs.Features.CloseVersion;
 using EcoBilling.Modules.Tariffs.Features.Create;
 using EcoBilling.Modules.Tariffs.Features.CreateVersion;
 using EcoBilling.Modules.Tariffs.Features.GetById;
@@ -33,6 +34,10 @@ public static class TariffManagementEndpoints
             .WithName("ListTariffVersions");
         group.MapGet("/{tariffId:guid}/versions/{versionId:guid}", GetVersionByIdAsync)
             .WithName("GetTariffVersionById");
+        group.MapPut(
+                "/{tariffId:guid}/versions/{versionId:guid}/end",
+                CloseVersionAsync)
+            .WithName("CloseTariffVersion");
 
         endpoints.MapGet(
                 "/api/v1/accounts/{accountId:guid}/tariff-assignments",
@@ -189,6 +194,35 @@ public static class TariffManagementEndpoints
             : Results.Ok(result.Value);
     }
 
+    private static async Task<IResult> CloseVersionAsync(
+        Guid tariffId,
+        Guid versionId,
+        CloseTariffVersionRequest request,
+        HttpContext httpContext,
+        CloseTariffVersionHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (tariffId == Guid.Empty || versionId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                TariffErrors.VersionNotFound);
+        }
+
+        var result = await handler.Handle(
+            new CloseTariffVersionCommand(
+                new TariffId(tariffId),
+                new TariffVersionId(versionId),
+                request.EffectiveTo,
+                UserRequestContext.GetUserId(httpContext).Value.ToString("D"),
+                httpContext.TraceIdentifier),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.NoContent();
+    }
+
     private static async Task<IResult> CreateAsync(
         CreateTariffRequest request,
         HttpContext httpContext,
@@ -314,3 +348,5 @@ public sealed record TariffVersionMutationResponse(
     string Status);
 
 public sealed record CloseTariffAssignmentRequest(DateOnly EffectiveTo);
+
+public sealed record CloseTariffVersionRequest(DateOnly EffectiveTo);

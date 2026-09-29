@@ -55,6 +55,31 @@ public sealed class ControllerWorklistReader(EcoBillingDbContext dbContext)
                     .ThenByDescending(meter => meter.InstalledAt)
                     .ToListAsync(cancellationToken);
 
+                var workMeters = new List<ControllerWorkMeter>(meters.Count);
+                foreach (var meter in meters)
+                {
+                    var lastReading = await dbContext.MeterReadings
+                        .AsNoTracking()
+                        .Where(
+                            reading =>
+                                reading.MeterId == meter.Id &&
+                                !dbContext.MeterReadings.Any(
+                                    correction =>
+                                        correction.SupersedesReadingId == reading.Id))
+                        .OrderByDescending(reading => reading.MeasuredAt)
+                        .ThenByDescending(reading => reading.CreatedAt)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    workMeters.Add(
+                        new ControllerWorkMeter(
+                            meter.Id.Value,
+                            meter.SerialNumber.Value,
+                            meter.IsActive,
+                            meter.InstalledAt,
+                            lastReading?.Value.Value,
+                            lastReading?.MeasuredAt));
+                }
+
                 result.Add(
                     new ControllerWorkItem(
                         assignment.Id.Value,
@@ -68,13 +93,7 @@ public sealed class ControllerWorklistReader(EcoBillingDbContext dbContext)
                         address.House,
                         address.Building,
                         address.Apartment,
-                        meters.Select(
-                                meter => new ControllerWorkMeter(
-                                    meter.Id.Value,
-                                    meter.SerialNumber.Value,
-                                    meter.IsActive,
-                                    meter.InstalledAt))
-                            .ToArray()));
+                        workMeters));
             }
         }
 

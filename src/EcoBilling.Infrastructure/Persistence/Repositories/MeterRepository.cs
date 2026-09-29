@@ -65,18 +65,6 @@ public sealed class MeterRepository(EcoBillingDbContext dbContext)
             return new MeterPersistenceResult(MeterPersistenceOutcome.AccountNotFound);
         }
 
-        var duplicateSerial = await dbContext.Meters
-            .AsNoTracking()
-            .AnyAsync(
-                existing => existing.SerialNumber == meter.SerialNumber,
-                cancellationToken);
-        if (duplicateSerial)
-        {
-            await transaction.CommitAsync(cancellationToken);
-            return new MeterPersistenceResult(
-                MeterPersistenceOutcome.SerialNumberAlreadyExists);
-        }
-
         dbContext.Meters.Add(meter);
         dbContext.AuditLogs.Add(
             new AuditLog(
@@ -144,18 +132,6 @@ public sealed class MeterRepository(EcoBillingDbContext dbContext)
             await transaction.CommitAsync(cancellationToken);
             return new MeterPersistenceResult(
                 MeterPersistenceOutcome.ReplacementAccountMismatch);
-        }
-
-        var duplicateSerial = await dbContext.Meters
-            .AsNoTracking()
-            .AnyAsync(
-                meter => meter.SerialNumber == replacementMeter.SerialNumber,
-                cancellationToken);
-        if (duplicateSerial)
-        {
-            await transaction.CommitAsync(cancellationToken);
-            return new MeterPersistenceResult(
-                MeterPersistenceOutcome.SerialNumberAlreadyExists);
         }
 
         var retireResult = current.Retire(retiredAt);

@@ -56,6 +56,21 @@ jobs:
       - name: Restore
         run: dotnet restore EcoBilling.slnx -warnaserror
 
+      - name: Generate v1 compatibility migration
+        env:
+          ECOBILLING_DESIGN_TIME_CONNECTION: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=ecobilling_ci;Include Error Detail=false
+        run: |
+          dotnet tool restore
+          dotnet ef migrations add AlignV1Compatibility --project src/EcoBilling.Infrastructure --startup-project src/EcoBilling.Infrastructure
+          echo "===MIGRATION_FILES_BEGIN==="
+          for file in src/EcoBilling.Infrastructure/Migrations/*AlignV1Compatibility*.cs src/EcoBilling.Infrastructure/Migrations/EcoBillingDbContextModelSnapshot.cs; do
+            echo "===FILE:$file==="
+            base64 -w0 "$file"
+            echo
+            echo "===END_FILE==="
+          done
+          echo "===MIGRATION_FILES_END==="
+
       - name: Build Release
         run: dotnet build EcoBilling.slnx --configuration Release --no-restore
 

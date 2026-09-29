@@ -5,6 +5,7 @@ using EcoBilling.Modules.Controllers.Domain;
 using EcoBilling.Modules.Controllers.Features.AssignAddress;
 using EcoBilling.Modules.Controllers.Features.CreateController;
 using EcoBilling.Modules.Controllers.Features.GetMyAssignments;
+using EcoBilling.Modules.Controllers.Features.GetWorklist;
 using EcoBilling.Modules.Controllers.Features.RemoveAssignment;
 using EcoBilling.Modules.Identity.Domain;
 
@@ -58,6 +59,16 @@ public static class ControllerManagementEndpoints
             .WithTags("Controllers")
             .Produces<IReadOnlyList<ControllerAssignmentResponse>>(
                 StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet(
+                "/api/v1/controllers/me/worklist",
+                GetMyWorklistAsync)
+            .RequireAuthorization(UserAuthenticationOptions.ControllerPolicy)
+            .WithName("GetMyControllerWorklist")
+            .WithTags("Controllers")
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
@@ -186,6 +197,21 @@ public static class ControllerManagementEndpoints
                         assignment.House,
                         assignment.Building,
                         assignment.Apartment))));
+    }
+
+    private static async Task<IResult> GetMyWorklistAsync(
+        HttpContext httpContext,
+        GetControllerWorklistHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.Handle(
+            new GetControllerWorklistQuery(
+                UserRequestContext.GetUserId(httpContext)),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> CreateAsync(

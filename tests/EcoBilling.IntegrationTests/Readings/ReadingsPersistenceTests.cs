@@ -42,9 +42,9 @@ public sealed class ReadingsPersistenceTests
         Assert.True(await reader.ReadAsync());
         Assert.Equal("readings", reader.GetString(0));
         Assert.Equal("readings.meter_readings", reader.GetString(1));
-        Assert.Equal(3, reader.GetInt64(2));
-        Assert.Equal(2, reader.GetInt64(3));
-        Assert.Equal(5, reader.GetInt64(4));
+        Assert.Equal(6, reader.GetInt64(2));
+        Assert.Equal(4, reader.GetInt64(3));
+        Assert.Equal(6, reader.GetInt64(4));
     }
 
     [PostgreSqlFact]

@@ -5,7 +5,7 @@ namespace EcoBilling.Modules.Controllers.Features.Abstractions;
 
 public interface IControllerAssignmentRepository
 {
-    Task<ControllerAssignmentPersistenceOutcome> AssignAsync(
+    Task<ControllerAssignmentPersistenceResult> AssignAsync(
         ControllerAssignment assignment,
         string actorId,
         string correlationId,
@@ -22,14 +22,6 @@ public interface IControllerAssignmentRepository
     Task<IReadOnlyList<ControllerAssignmentDetails>> ListByControllerIdAsync(
         ControllerId controllerId,
         CancellationToken cancellationToken);
-}
-
-public enum ControllerAssignmentPersistenceOutcome
-{
-    Assigned = 0,
-    AlreadyAssigned = 1,
-    ControllerNotFound = 2,
-    AddressNotFound = 3
 }
 
 public enum ControllerAssignmentRemovalOutcome

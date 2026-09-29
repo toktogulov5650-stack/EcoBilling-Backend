@@ -12,7 +12,7 @@ public sealed class ControllerAssignmentRepository(EcoBillingDbContext dbContext
 {
     private const long AssignmentLockId = 2_970_412_884_215_319_241;
 
-    public async Task<ControllerAssignmentPersistenceOutcome> AssignAsync(
+    public async Task<ControllerAssignmentPersistenceResult> AssignAsync(
         ControllerAssignment assignment,
         string actorId,
         string correlationId,
@@ -38,7 +38,8 @@ public sealed class ControllerAssignmentRepository(EcoBillingDbContext dbContext
         if (!controllerExists)
         {
             await transaction.CommitAsync(cancellationToken);
-            return ControllerAssignmentPersistenceOutcome.ControllerNotFound;
+            return new ControllerAssignmentPersistenceResult(
+                ControllerAssignmentPersistenceOutcome.ControllerNotFound);
         }
 
         var addressExists = await dbContext.Addresses
@@ -50,21 +51,25 @@ public sealed class ControllerAssignmentRepository(EcoBillingDbContext dbContext
         if (!addressExists)
         {
             await transaction.CommitAsync(cancellationToken);
-            return ControllerAssignmentPersistenceOutcome.AddressNotFound;
+            return new ControllerAssignmentPersistenceResult(
+                ControllerAssignmentPersistenceOutcome.AddressNotFound);
         }
 
-        var alreadyAssigned = await dbContext.ControllerAssignments
+        var existingAssignment = await dbContext.ControllerAssignments
             .AsNoTracking()
-            .AnyAsync(
+            .SingleOrDefaultAsync(
                 existing =>
                     existing.ControllerId == assignment.ControllerId &&
                     existing.AddressId == assignment.AddressId,
                 cancellationToken);
 
-        if (alreadyAssigned)
+        if (existingAssignment is not null)
         {
             await transaction.CommitAsync(cancellationToken);
-            return ControllerAssignmentPersistenceOutcome.AlreadyAssigned;
+            return new ControllerAssignmentPersistenceResult(
+                ControllerAssignmentPersistenceOutcome.Replayed,
+                existingAssignment.Id,
+                existingAssignment.CreatedAt);
         }
 
         dbContext.ControllerAssignments.Add(assignment);
@@ -74,7 +79,10 @@ public sealed class ControllerAssignmentRepository(EcoBillingDbContext dbContext
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return ControllerAssignmentPersistenceOutcome.Assigned;
+        return new ControllerAssignmentPersistenceResult(
+            ControllerAssignmentPersistenceOutcome.Assigned,
+            assignment.Id,
+            assignment.CreatedAt);
     }
 
     public async Task<ControllerAssignmentRemovalOutcome> RemoveAsync(

@@ -17,13 +17,16 @@ public sealed class Meter
         AccountId accountId,
         MeterSerialNumber serialNumber,
         DateTimeOffset installedAt,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        MeterId? replacesMeterId)
     {
         Id = id;
         AccountId = accountId;
         SerialNumber = serialNumber;
-        InstalledAt = installedAt;
-        CreatedAt = createdAt;
+        InstalledAt = installedAt.ToUniversalTime();
+        CreatedAt = createdAt.ToUniversalTime();
+        IsActive = true;
+        ReplacesMeterId = replacesMeterId;
     }
 
     public MeterId Id { get; private set; }
@@ -36,12 +39,19 @@ public sealed class Meter
 
     public DateTimeOffset CreatedAt { get; private set; }
 
+    public bool IsActive { get; private set; }
+
+    public DateTimeOffset? RetiredAt { get; private set; }
+
+    public MeterId? ReplacesMeterId { get; private set; }
+
     public static Result<Meter> Create(
         MeterId id,
         AccountId accountId,
         string? serialNumber,
         DateTimeOffset installedAt,
-        DateTimeOffset createdAt)
+        DateTimeOffset createdAt,
+        MeterId? replacesMeterId = null)
     {
         ArgumentNullException.ThrowIfNull(id);
         ArgumentNullException.ThrowIfNull(accountId);
@@ -57,7 +67,26 @@ public sealed class Meter
                 id,
                 accountId,
                 normalizedSerialNumber.Value,
-                installedAt.ToUniversalTime(),
-                createdAt.ToUniversalTime()));
+                installedAt,
+                createdAt,
+                replacesMeterId));
+    }
+
+    public Result Retire(DateTimeOffset retiredAt)
+    {
+        if (!IsActive)
+        {
+            return Result.Failure(MeterErrors.AlreadyRetired);
+        }
+
+        var utcRetiredAt = retiredAt.ToUniversalTime();
+        if (utcRetiredAt < InstalledAt)
+        {
+            return Result.Failure(MeterErrors.InvalidRetiredAt);
+        }
+
+        IsActive = false;
+        RetiredAt = utcRetiredAt;
+        return Result.Success();
     }
 }

@@ -1,4 +1,5 @@
 using EcoBilling.Infrastructure.Authentication;
+using EcoBilling.Infrastructure.Concurrency;
 using EcoBilling.Infrastructure.Outbox;
 using EcoBilling.Infrastructure.Observability;
 using EcoBilling.Infrastructure.Persistence;
@@ -88,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<IControllerDirectoryReader, ControllerDirectoryReader>();
         services.AddScoped<IResidentDirectoryReader, ResidentDirectoryReader>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
+        services.AddSingleton<IWorkerExecutionLock, PostgreSqlWorkerExecutionLock>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddSingleton<IRefreshTokenService, RefreshTokenService>();
 

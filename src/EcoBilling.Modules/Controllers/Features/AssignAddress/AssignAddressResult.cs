@@ -7,4 +7,5 @@ public sealed record AssignAddressResult(
     ControllerAssignmentId AssignmentId,
     ControllerId ControllerId,
     AddressId AddressId,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool IsReplay);

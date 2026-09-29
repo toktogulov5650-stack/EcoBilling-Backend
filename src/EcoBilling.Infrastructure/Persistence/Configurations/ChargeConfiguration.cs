@@ -20,9 +20,6 @@ internal sealed class ChargeConfiguration : IEntityTypeConfiguration<Charge>
                     "ck_charges_billing_period",
                     "period_end > period_start");
                 table.HasCheckConstraint(
-                    "ck_charges_amount_non_negative",
-                    "amount >= 0");
-                table.HasCheckConstraint(
                     "ck_charges_consumption_non_negative",
                     "consumption >= 0");
             });
@@ -63,7 +60,7 @@ internal sealed class ChargeConfiguration : IEntityTypeConfiguration<Charge>
 
         builder.Property(charge => charge.Amount)
             .HasColumnName("amount")
-            .HasColumnType("numeric(18,2)")
+            .HasColumnType("numeric")
             .IsRequired();
 
         builder.Property(charge => charge.CreatedAt)

@@ -25,7 +25,9 @@ public static class ReportEndpoints
         GetDistrictOperationalSummaryHandler handler,
         CancellationToken cancellationToken)
     {
-        var result = await handler.Handle(cancellationToken);
+        var result = await handler.Handle(
+            new GetDistrictOperationalSummaryQuery(),
+            cancellationToken);
         return Results.Ok(result.Value);
     }
 

@@ -110,8 +110,11 @@ public static class TariffManagementEndpoints
                 AccountTariffAssignmentErrors.AccountNotFound);
         }
 
-        var effectiveDate = date ??
-            DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
+        var billingTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Bishkek");
+        var localNow = TimeZoneInfo.ConvertTime(
+            timeProvider.GetUtcNow(),
+            billingTimeZone);
+        var effectiveDate = date ?? DateOnly.FromDateTime(localNow.DateTime);
         var result = await handler.Handle(
             new GetAccountTariffQuery(new AccountId(accountId), effectiveDate),
             cancellationToken);

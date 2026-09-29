@@ -72,15 +72,17 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
             select (decimal?)allocation.Amount)
             .SumAsync(cancellationToken) ?? 0m;
 
+        var account = await dbContext.Accounts
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == accountId, cancellationToken);
         var outstandingDebt = Math.Max(0m, totalCharges - totalAllocated);
-        var overpayment = Math.Max(0m, totalPayments - totalAllocated);
 
         return new AccountFinancialSummary(
             accountId.Value,
             totalCharges,
             totalAllocated,
             outstandingDebt,
-            overpayment,
+            account.Overpayment,
             "KGS");
     }
 
@@ -130,10 +132,11 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
                 IsReplay: true);
         }
 
-        var accountExists = await dbContext.Accounts
-            .AsNoTracking()
-            .AnyAsync(account => account.Id == payment.AccountId, cancellationToken);
-        if (!accountExists)
+        var account = await dbContext.Accounts
+            .SingleOrDefaultAsync(
+                candidate => candidate.Id == payment.AccountId,
+                cancellationToken);
+        if (account is null)
         {
             await transaction.CommitAsync(cancellationToken);
             return new PaymentRegistrationPersistenceResult(
@@ -185,6 +188,8 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
             allocations.Add(allocation.Value);
             remaining -= allocatedAmount;
         }
+
+        account.AddOverpayment(remaining);
 
         dbContext.Payments.Add(payment);
         dbContext.PaymentAllocations.AddRange(allocations);

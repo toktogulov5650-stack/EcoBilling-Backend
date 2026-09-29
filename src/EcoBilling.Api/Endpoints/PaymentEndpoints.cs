@@ -72,6 +72,13 @@ public static class PaymentEndpoints
         RegisterManualPaymentHandler handler,
         CancellationToken cancellationToken)
     {
+        if (accountId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                EcoBilling.Modules.Accounts.Domain.AccountErrors.NotFound);
+        }
+
         var result = await handler.Handle(
             new RegisterManualPaymentCommand(
                 new AccountId(accountId),
@@ -95,9 +102,17 @@ public static class PaymentEndpoints
 
     private static async Task<IResult> ListAsync(
         Guid accountId,
+        HttpContext httpContext,
         ListPaymentsByAccountHandler handler,
         CancellationToken cancellationToken)
     {
+        if (accountId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                EcoBilling.Modules.Accounts.Domain.AccountErrors.NotFound);
+        }
+
         var result = await handler.Handle(
             new ListPaymentsByAccountQuery(new AccountId(accountId)),
             cancellationToken);
@@ -110,6 +125,13 @@ public static class PaymentEndpoints
         GetAccountFinancialSummaryHandler handler,
         CancellationToken cancellationToken)
     {
+        if (accountId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                EcoBilling.Modules.Accounts.Domain.AccountErrors.NotFound);
+        }
+
         var result = await handler.Handle(
             new GetAccountFinancialSummaryQuery(new AccountId(accountId)),
             cancellationToken);

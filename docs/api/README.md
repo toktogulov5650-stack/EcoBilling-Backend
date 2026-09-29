@@ -127,7 +127,7 @@ TariffVersion и Account assignment используют полуоткрыты�
 
 v1: календарный месяц `Asia/Bishkek`, consumption = current accepted reading - previous accepted reading, amount = consumption × effective tariff rate, KGS, округление `AwayFromZero` до 2 знаков. Charge сохраняет reading IDs, TariffVersion и calculation version.
 
-Повтор того же Account/month возвращает существующий Charge. Если расчётный месяц пересекает replacement нескольких Meter, API возвращает явную ошибку вместо неподтверждённой формулы.
+Повтор того же Account/month возвращает существующий Charge. Если расчётный месяц пересекает replacement нескольких Meter либо границу Tariff assignment/TariffVersion, API возвращает явную ошибку вместо неподтверждённой формулы или скрытого prorating.
 
 ## Payments
 

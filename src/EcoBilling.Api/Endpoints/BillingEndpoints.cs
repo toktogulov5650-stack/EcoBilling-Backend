@@ -1,6 +1,8 @@
 using EcoBilling.Api.Configuration;
 using EcoBilling.Modules.Accounts.Domain;
+using EcoBilling.Modules.Billing.Domain;
 using EcoBilling.Modules.Billing.Features.CalculateMonthly;
+using EcoBilling.Modules.Billing.Features.GetById;
 using EcoBilling.Modules.Billing.Features.ListByAccount;
 
 namespace EcoBilling.Api.Endpoints;
@@ -10,6 +12,12 @@ public static class BillingEndpoints
     public static IEndpointRouteBuilder MapBillingEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/charges/{chargeId:guid}", GetByIdAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Billing")
+            .WithName("GetChargeById")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         endpoints.MapPost(
                 "/api/v1/accounts/{accountId:guid}/billing/{year:int}/{month:int}",
                 CalculateAsync)
@@ -25,6 +33,26 @@ public static class BillingEndpoints
             .WithName("ListAccountCharges");
 
         return endpoints;
+    }
+
+    private static async Task<IResult> GetByIdAsync(
+        Guid chargeId,
+        HttpContext httpContext,
+        GetChargeByIdHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (chargeId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(httpContext, ChargeErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new GetChargeByIdQuery(new ChargeId(chargeId)),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> CalculateAsync(

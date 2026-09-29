@@ -100,6 +100,7 @@ public static class TariffManagementEndpoints
         DateOnly? date,
         HttpContext httpContext,
         GetAccountTariffHandler handler,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         if (accountId == Guid.Empty)
@@ -109,7 +110,8 @@ public static class TariffManagementEndpoints
                 AccountTariffAssignmentErrors.AccountNotFound);
         }
 
-        var effectiveDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var effectiveDate = date ??
+            DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime);
         var result = await handler.Handle(
             new GetAccountTariffQuery(new AccountId(accountId), effectiveDate),
             cancellationToken);

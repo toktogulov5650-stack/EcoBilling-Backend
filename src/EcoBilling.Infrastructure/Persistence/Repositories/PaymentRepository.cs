@@ -112,7 +112,7 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
                     PaymentRegistrationPersistenceOutcome.IdempotencyConflict);
             }
 
-            var account = await dbContext.Accounts
+            var replayAccount = await dbContext.Accounts
                 .AsNoTracking()
                 .SingleAsync(
                     candidate => candidate.Id == existing.AccountId,
@@ -122,7 +122,7 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
             return new PaymentRegistrationPersistenceResult(
                 PaymentRegistrationPersistenceOutcome.Replayed,
                 existing,
-                account.Overpayment,
+                replayAccount.Overpayment,
                 IsReplay: true);
         }
 

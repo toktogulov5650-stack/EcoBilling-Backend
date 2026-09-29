@@ -18,4 +18,6 @@ public sealed record ControllerWorkMeter(
     Guid MeterId,
     string SerialNumber,
     bool IsActive,
-    DateTimeOffset InstalledAt);
+    DateTimeOffset InstalledAt,
+    decimal? LastReadingValue,
+    DateTimeOffset? LastReadingMeasuredAt);

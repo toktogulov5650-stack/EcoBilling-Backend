@@ -61,7 +61,7 @@ jobs:
           ECOBILLING_DESIGN_TIME_CONNECTION: Host=127.0.0.1;Port=5432;Database=postgres;Username=postgres;Password=ecobilling_ci;Include Error Detail=false
         run: |
           dotnet tool restore
-          dotnet ef migrations add CompleteV1Backend --project src/EcoBilling.Infrastructure --startup-project src/EcoBilling.Infrastructure --no-build
+          dotnet ef migrations add CompleteV1Backend --project src/EcoBilling.Infrastructure --startup-project src/EcoBilling.Infrastructure
           echo "===MIGRATION_FILES_BEGIN==="
           for file in src/EcoBilling.Infrastructure/Migrations/*CompleteV1Backend*.cs src/EcoBilling.Infrastructure/Migrations/EcoBillingDbContextModelSnapshot.cs; do
             echo "===FILE:$file==="

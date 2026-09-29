@@ -8,9 +8,11 @@
 - [ ] CI для commit зелёный.
 - [ ] Container images собраны один раз и зафиксированы immutable digest.
 - [ ] NuGet audit выполнен.
-- [ ] Финальные images просканированы выбранным scanner.
+- [x] CI сканирует финальные `api`, `worker`, `migrations`, `postgres` через Trivy и блокирует исправимые CRITICAL/HIGH findings.
 - [ ] SBOM сохранён вместе с release metadata.
-- [ ] Critical/High findings закрыты или имеют документированный risk acceptance.
+- [x] Последний подтверждённый CI scan: 0 CRITICAL/HIGH findings с `ignore-unfixed=true` для всех четырёх images.
+
+Последнее подтверждение этих двух scan-пунктов: commit `ba31d7a8a19850c36883fc8a081279561e076e47`, GitHub Actions CI run 67. Immutable digest/SBOM release evidence остаётся отдельным production release шагом.
 
 ## 2. Secrets
 

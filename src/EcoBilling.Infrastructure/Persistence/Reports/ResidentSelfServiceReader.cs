@@ -169,11 +169,15 @@ public sealed class ResidentSelfServiceReader(EcoBillingDbContext dbContext)
             select (decimal?)allocation.Amount)
             .SumAsync(cancellationToken) ?? 0m;
 
+        var account = await dbContext.Accounts
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == typedAccountId, cancellationToken);
+
         return new ResidentFinancialView(
             totalCharges,
             totalPayments,
             Math.Max(0m, totalCharges - allocated),
-            Math.Max(0m, totalPayments - allocated),
+            account.Overpayment,
             "KGS");
     }
 }

@@ -9,7 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EcoBilling.Infrastructure.Persistence.Repositories;
 
-public sealed class BillingCalculationRepository(EcoBillingDbContext dbContext)
+public sealed class BillingCalculationRepository(
+    EcoBillingDbContext dbContext,
+    TimeProvider timeProvider)
     : IBillingCalculationRepository
 {
     private const long BillingLockId = 6_317_490_221_743_882_107;
@@ -157,7 +159,7 @@ public sealed class BillingCalculationRepository(EcoBillingDbContext dbContext)
             periodStart,
             periodEnd,
             amount,
-            DateTimeOffset.UtcNow,
+            timeProvider.GetUtcNow(),
             previousReading.Id,
             currentReading.Id,
             consumption,

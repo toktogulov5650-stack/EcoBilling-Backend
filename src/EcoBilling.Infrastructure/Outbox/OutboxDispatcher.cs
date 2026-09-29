@@ -9,6 +9,8 @@ public sealed class OutboxDispatcher(
     TimeProvider timeProvider)
     : IOutboxDispatcher
 {
+    private const long DispatcherLockId = 4_288_965_301_774_126_909;
+
     public async Task<OutboxDispatchResult> DispatchBatchAsync(
         int batchSize,
         CancellationToken cancellationToken)
@@ -17,6 +19,13 @@ public sealed class OutboxDispatcher(
         {
             throw new ArgumentOutOfRangeException(nameof(batchSize));
         }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            cancellationToken);
+
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({DispatcherLockId})",
+            cancellationToken);
 
         var selected = await dbContext.OutboxMessages
             .Where(message => message.ProcessedAt == null)
@@ -55,8 +64,7 @@ public sealed class OutboxDispatcher(
             }
             catch (Exception exception)
             {
-                var safeError = exception.GetType().Name;
-                message.RecordFailure(safeError);
+                message.RecordFailure(exception.GetType().Name);
                 failed++;
             }
         }
@@ -65,6 +73,8 @@ public sealed class OutboxDispatcher(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        await transaction.CommitAsync(cancellationToken);
 
         return new OutboxDispatchResult(selected.Count, processed, failed);
     }

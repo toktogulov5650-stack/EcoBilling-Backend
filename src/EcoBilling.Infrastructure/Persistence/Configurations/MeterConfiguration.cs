@@ -63,10 +63,6 @@ internal sealed class MeterConfiguration : IEntityTypeConfiguration<Meter>
         builder.HasIndex(meter => meter.AccountId)
             .HasDatabaseName("ix_meters_account_id");
 
-        builder.HasIndex(meter => meter.SerialNumber)
-            .IsUnique()
-            .HasDatabaseName("ux_meters_serial_number");
-
         builder.HasIndex(meter => meter.ReplacesMeterId)
             .IsUnique()
             .HasFilter("replaces_meter_id IS NOT NULL")

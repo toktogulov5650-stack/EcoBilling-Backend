@@ -5,4 +5,7 @@ public sealed record MeterDetails(
     Guid AccountId,
     string SerialNumber,
     DateTimeOffset InstalledAt,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool IsActive = true,
+    DateTimeOffset? RetiredAt = null,
+    Guid? ReplacesMeterId = null);

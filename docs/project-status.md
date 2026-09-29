@@ -83,14 +83,14 @@
 1. `dotnet restore` — успешно;
 2. Release build — успешно;
 3. EF Core migrations и ModelSnapshot синхронизированы;
-4. Architecture tests — 30/30;
-5. Unit tests — 305/305;
-6. PostgreSQL integration tests — 197/197;
+4. Architecture tests — 34/34;
+5. Unit tests — 307/307;
+6. PostgreSQL integration tests — 206/206;
 7. E2E journeys — 4/4;
 8. Docker Compose validation — успешно;
 9. container images `api`, `worker`, `migrations` — успешно;
 10. GitHub Actions CI — зелёный.
 
-Итого автоматизированных тестов: 536/536.
+Итого автоматизированных тестов: 551/551.
 
 Backend v1 является проверенным staging candidate. Production GO требует environment-specific evidence из [production readiness checklist](operations/production-readiness.md): secrets, TLS/ingress/trusted proxies, PostgreSQL role split, backup/restore, observability, final image scanning и migration rehearsal. Внешний Outbox transport и payment provider требуются только если соответствующие сценарии включаются.

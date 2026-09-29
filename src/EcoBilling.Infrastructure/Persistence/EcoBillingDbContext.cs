@@ -54,9 +54,15 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
 
     public DbSet<TariffVersion> TariffVersions => Set<TariffVersion>();
 
+    public DbSet<AccountTariffAssignment> AccountTariffAssignments =>
+        Set<AccountTariffAssignment>();
+
     public DbSet<Charge> Charges => Set<Charge>();
 
     public DbSet<Payment> Payments => Set<Payment>();
+
+    public DbSet<PaymentAllocation> PaymentAllocations =>
+        Set<PaymentAllocation>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 

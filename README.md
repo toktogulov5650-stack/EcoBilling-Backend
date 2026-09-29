@@ -27,7 +27,7 @@ EcoBilling — backend системы учёта, начислений и опл
 - административный отзыв всех refresh-сессий пользователя;
 - безопасная поддержка reverse proxy через явный allowlist доверенных proxy.
 
-Проект является **staging-ready backend candidate**, но production deployment остаётся **NO-GO**, пока не закрыты environment-specific блокеры: production secret store, раздельные PostgreSQL migration/runtime роли, TLS/ingress/network policy, backup/restore с RPO/RTO, telemetry backend/dashboards/alerts, финальное сканирование immutable images и реальные внешние интеграции.
+Проект является **staging-ready backend candidate**. Repository-side production hardening завершён и подтверждён зелёным CI; фактический production deployment остаётся **NO-GO**, пока не закрыты environment-specific блокеры: production secret store, применение раздельных PostgreSQL migration/runtime ролей, TLS/ingress/network policy, backup/restore с RPO/RTO, telemetry backend/dashboards/alerts, immutable release digest/SBOM и необходимые внешние интеграции.
 
 Внешний payment provider и внешний Outbox transport намеренно не симулируются.
 
@@ -149,7 +149,7 @@ Worker содержит реальные задачи monthly billing и outbox 
 - TLS termination, trusted proxies и network restrictions;
 - backup/restore drill с утверждёнными RPO/RTO;
 - OTLP collector/backend, dashboards и alerts;
-- scanning финальных immutable images и supply-chain policy;
+- фиксация immutable release digest/SBOM и supply-chain policy;
 - migration rehearsal на реалистичной копии данных;
 - rollback/forward-fix runbook;
 - безопасный процесс передачи initial credentials сотрудникам.

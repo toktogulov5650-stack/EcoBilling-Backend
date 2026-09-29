@@ -116,7 +116,7 @@ public sealed class Charge
             return Result<Charge>.Failure(period.Error);
         }
 
-        if (amount < 0 || consumption < 0)
+        if (consumption < 0)
         {
             return Result<Charge>.Failure(ChargeErrors.InvalidAmount);
         }

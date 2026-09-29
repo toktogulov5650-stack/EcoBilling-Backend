@@ -43,7 +43,7 @@ public static class ApiRateLimitingExtensions
 
                 if (retryAfter is not null)
                 {
-                    httpContext.Response.Headers.RetryAfter =
+                    httpContext.Response.Headers["Retry-After"] =
                         Math.Max(1, (int)Math.Ceiling(retryAfter.Value.TotalSeconds))
                             .ToString(System.Globalization.CultureInfo.InvariantCulture);
                 }

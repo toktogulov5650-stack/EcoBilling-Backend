@@ -104,7 +104,8 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
         if (existing is not null)
         {
             if (existing.AccountId != payment.AccountId ||
-                existing.Amount != payment.Amount)
+                existing.Amount != payment.Amount ||
+                existing.PaidAt != payment.PaidAt)
             {
                 await transaction.CommitAsync(cancellationToken);
                 return new PaymentRegistrationPersistenceResult(

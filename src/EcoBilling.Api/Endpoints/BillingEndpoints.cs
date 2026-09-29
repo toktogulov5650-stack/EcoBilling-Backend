@@ -63,6 +63,13 @@ public static class BillingEndpoints
         CalculateMonthlyChargeHandler handler,
         CancellationToken cancellationToken)
     {
+        if (accountId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                EcoBilling.Modules.Accounts.Domain.AccountErrors.NotFound);
+        }
+
         var result = await handler.Handle(
             new CalculateMonthlyChargeCommand(
                 new AccountId(accountId),

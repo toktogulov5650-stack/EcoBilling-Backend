@@ -87,6 +87,8 @@ EcoBilling не доверяет `X-Forwarded-For` / `X-Forwarded-Proto` по у
 
 ## 7. Observability
 
+Для staging/reference в репозитории есть `deploy/observability/otel-collector.example.yml`. Он принимает OTLP gRPC/HTTP, экспортирует metrics в Prometheus format и оставляет traces/logs в debug exporter. Это пример pipeline, а не production backend.
+
 - [ ] Настроен `Observability__OtlpEndpoint`.
 - [ ] Collector принимает traces/metrics.
 - [ ] Логи централизованы.

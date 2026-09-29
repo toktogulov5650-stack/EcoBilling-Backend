@@ -35,7 +35,7 @@ docker compose --env-file deploy/.env --file deploy/compose.yml down
 | `/health/live` недоступен | API не запущен или не принимает HTTP | Статус контейнера и логи `api`. |
 | `/health/live` healthy, `/health/ready` unhealthy | API работает, PostgreSQL недоступна | Логи `postgres`, network/config и строка подключения без вывода секрета. |
 | `migrations` завершился с ошибкой | Схема не подготовлена; API/Worker не должны стартовать | Логи `migrations`, доступность БД и совместимость миграции. |
-| Worker container unhealthy | PID 1 завершился или не отвечает сигналу процесса | Логи `worker`. Отдельной readiness реальных jobs пока нет. |
+| Worker container unhealthy | PID 1 завершился или не отвечает сигналу процесса | Логи `worker`, последние task outcomes и PostgreSQL connectivity. |
 | OTLP отсутствует | Локальная работа продолжается без внешнего telemetry backend | Значение `Observability__OtlpEndpoint` и доступность collector. |
 
 Логи API и Worker являются структурированным JSON. Для связи запроса используйте `X-Correlation-Id`, `CorrelationId` и `TraceId`; не включайте request body, токены, пароли или строки подключения в диагностические сообщения.
@@ -56,7 +56,7 @@ docker compose --env-file deploy/.env --file deploy/compose.yml down
 
 ## Rollback
 
-Автоматический production rollback схемы не определён. Возврат предыдущей версии API/Worker допустим только если уже применённая схема обратно совместима с этой версией. Иначе требуется отдельный проверенный план восстановления данных или forward-fix.
+Schema downgrade не является автоматической стратегией. Возврат предыдущей версии API/Worker допустим только если применённая schema обратно совместима. Для необратимых migrations основной путь — заранее подготовленный forward-fix; восстановление backup используется только по утверждённому incident plan.
 
 Не запускайте `dotnet ef database update <old-migration>` на production без анализа потери данных и утверждённого плана. Отсутствие backup/restore и ответственных за RPO/RTO является блокером production release, а не поводом выбрать значения молча.
 
@@ -73,3 +73,23 @@ docker compose --env-file deploy/.env --file deploy/compose.yml down
 - факт последней миграции и изменения конфигурации.
 
 Точный список обязательных настроек находится в [справочнике конфигурации](../configuration/README.md), а ограничения контейнеров — в [руководстве развёртывания](../deployment/README.md).
+
+
+## Отзыв пользовательских сессий
+
+Director может отозвать все refresh sessions пользователя через:
+
+`POST /api/v1/users/{userId}/sessions/revoke-all`
+
+Операция аудируется и идемпотентна по эффекту: повторный вызов может вернуть `RevokedSessions = 0`. Уже выпущенный access token не хранится server-side и действует до своего короткого expiration; при критичном incident это учитывается в containment window.
+
+## Production PostgreSQL roles
+
+SQL scripts:
+
+- `deploy/postgres/bootstrap-production-roles.sql`;
+- `deploy/postgres/grant-runtime.sql`.
+
+После deployment обязательно проверить negative permissions runtime role, а не только успешный health check.
+
+Полный go/no-go список: [production readiness checklist](production-readiness.md).

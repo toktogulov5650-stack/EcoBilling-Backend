@@ -88,9 +88,10 @@
 6. PostgreSQL integration tests — 206/206;
 7. E2E journeys — 4/4;
 8. Docker Compose validation — успешно;
-9. container images `api`, `worker`, `migrations` — успешно;
-10. GitHub Actions CI — зелёный.
+9. container images `api`, `worker`, `migrations`, `postgres` — успешно;
+10. Trivy CRITICAL/HIGH scan — 0 findings для всех четырёх финальных images;
+11. GitHub Actions CI — зелёный.
 
 Итого автоматизированных тестов: 551/551.
 
-Backend v1 является проверенным staging candidate. Production GO требует environment-specific evidence из [production readiness checklist](operations/production-readiness.md): secrets, TLS/ingress/trusted proxies, PostgreSQL role split, backup/restore, observability, final image scanning и migration rehearsal. Внешний Outbox transport и payment provider требуются только если соответствующие сценарии включаются.
+Backend v1 является проверенным staging candidate. Production GO требует environment-specific evidence из [production readiness checklist](operations/production-readiness.md): secrets, TLS/ingress/trusted proxies, PostgreSQL role split, backup/restore, observability, сохранение release SBOM/immutable digest policy и migration rehearsal на реалистичной копии данных. Внешний Outbox transport и payment provider требуются только если соответствующие сценарии включаются.

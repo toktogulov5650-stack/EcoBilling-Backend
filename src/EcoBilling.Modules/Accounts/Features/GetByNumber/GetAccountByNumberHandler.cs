@@ -34,6 +34,7 @@ public sealed class GetAccountByNumberHandler(IAccountRepository accountReposito
                 account.ResidentId.Value,
                 account.AddressId.Value,
                 account.Number.Value,
-                account.CreatedAt));
+                account.CreatedAt,
+                account.Overpayment));
     }
 }

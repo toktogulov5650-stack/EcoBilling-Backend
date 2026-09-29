@@ -39,6 +39,11 @@ public static class ChargeErrors
         "No active meter is available for the account.",
         ErrorType.NotFound);
 
+    public static Error MultipleMetersRequirePolicy { get; } = new(
+        "billing.multiple_meters_require_policy",
+        "The billing period spans a meter replacement and requires an approved calculation rule.",
+        ErrorType.Validation);
+
     public static Error PreviousReadingNotFound { get; } = new(
         "billing.previous_reading_not_found",
         "A previous accepted reading is required to calculate the charge.",

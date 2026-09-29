@@ -12,7 +12,7 @@
 - [ ] SBOM сохранён вместе с release metadata.
 - [x] Последний подтверждённый CI scan: 0 CRITICAL/HIGH findings с `ignore-unfixed=true` для всех четырёх images.
 
-Последнее подтверждение repository-owned release gates: commit `ba31d7a8a19850c36883fc8a081279561e076e47`, GitHub Actions CI run 67. Restore/build/tests/Compose/container builds/Trivy прошли успешно. Immutable digest/SBOM release evidence остаётся отдельным production release шагом.
+Последнее подтверждение repository-owned release gates: commit `9c93eafc3f1fe1329f368b8885beeeadd30b9b7c`, GitHub Actions CI run 73. Restore/build/tests/Compose/container builds/Trivy прошли успешно. Release workflow генерирует CycloneDX SBOM для `api`, `worker`, `migrations`, `postgres` и сохраняет их в release artifact, но production GO по-прежнему требует фиксации реально публикуемых immutable image digests и сохранения release evidence согласно выбранному registry/release process.
 
 ## 2. Secrets
 

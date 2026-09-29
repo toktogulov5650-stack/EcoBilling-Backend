@@ -78,5 +78,32 @@ public sealed class GetMeterByIdHandlerTests
             ReceivedCancellationToken = cancellationToken;
             return Task.FromResult(meter);
         }
+
+        public Task<IReadOnlyList<Meter>> ListByAccountIdAsync(
+            AccountId accountId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Meter>>([]);
+
+        public Task<MeterPersistenceResult> CreateAsync(
+            Meter meterToCreate,
+            string actorId,
+            string correlationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new MeterPersistenceResult(
+                    MeterPersistenceOutcome.Created,
+                    meterToCreate.Id));
+
+        public Task<MeterPersistenceResult> ReplaceAsync(
+            MeterId currentMeterId,
+            Meter replacementMeter,
+            string actorId,
+            string correlationId,
+            DateTimeOffset retiredAt,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new MeterPersistenceResult(
+                    MeterPersistenceOutcome.Replaced,
+                    replacementMeter.Id));
     }
 }

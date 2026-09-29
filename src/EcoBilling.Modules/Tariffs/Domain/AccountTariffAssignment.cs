@@ -44,6 +44,23 @@ public sealed class AccountTariffAssignment
         EffectiveFrom <= date &&
         (EffectiveTo is null || date < EffectiveTo.Value);
 
+    public Result Close(DateOnly effectiveTo)
+    {
+        if (effectiveTo <= EffectiveFrom)
+        {
+            return Result.Failure(
+                AccountTariffAssignmentErrors.InvalidEffectivePeriod);
+        }
+
+        if (EffectiveTo is not null && EffectiveTo.Value <= effectiveTo)
+        {
+            return Result.Success();
+        }
+
+        EffectiveTo = effectiveTo;
+        return Result.Success();
+    }
+
     public static Result<AccountTariffAssignment> Create(
         AccountTariffAssignmentId id,
         AccountId accountId,

@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddScoped<IControllerWorklistReader, ControllerWorklistReader>();
         services.AddScoped<IControllerDirectoryReader, ControllerDirectoryReader>();
         services.AddScoped<IResidentDirectoryReader, ResidentDirectoryReader>();
+        services.AddScoped<IDirectorProfileReader, DirectorProfileReader>();
         services.AddScoped<IOutboxDispatcher, OutboxDispatcher>();
         services.AddSingleton<IWorkerExecutionLock, PostgreSqlWorkerExecutionLock>();
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();

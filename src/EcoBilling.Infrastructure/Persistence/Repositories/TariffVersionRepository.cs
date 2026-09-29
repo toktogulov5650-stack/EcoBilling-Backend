@@ -55,6 +55,88 @@ public sealed class TariffVersionRepository(EcoBillingDbContext dbContext)
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<TariffVersionCloseOutcome> CloseAsync(
+        TariffId tariffId,
+        TariffVersionId tariffVersionId,
+        DateOnly effectiveTo,
+        string actorId,
+        string correlationId,
+        DateTimeOffset changedAt,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(tariffId);
+        ArgumentNullException.ThrowIfNull(tariffVersionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            cancellationToken);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({TariffVersionMutationLockId})",
+            cancellationToken);
+
+        var version = await dbContext.TariffVersions
+            .SingleOrDefaultAsync(
+                candidate =>
+                    candidate.Id == tariffVersionId &&
+                    candidate.TariffId == tariffId,
+                cancellationToken);
+        if (version is null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return TariffVersionCloseOutcome.NotFound;
+        }
+
+        if (version.EffectiveTo is not null &&
+            version.EffectiveTo.Value < effectiveTo)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return TariffVersionCloseOutcome.AlreadyClosed;
+        }
+
+        var before = new
+        {
+            tariffVersionId = version.Id.Value,
+            tariffId = version.TariffId.Value,
+            rate = version.Rate.Value,
+            effectiveFrom = version.EffectiveFrom,
+            effectiveTo = version.EffectiveTo
+        };
+
+        var close = version.Close(effectiveTo);
+        if (close.IsFailure)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return TariffVersionCloseOutcome.InvalidEffectivePeriod;
+        }
+
+        dbContext.AuditLogs.Add(
+            new AuditLog(
+                Guid.NewGuid(),
+                "User",
+                actorId,
+                "tariffs.version.closed",
+                "TariffVersion",
+                version.Id.Value.ToString("D"),
+                JsonSerializer.Serialize(before),
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        tariffVersionId = version.Id.Value,
+                        tariffId = version.TariffId.Value,
+                        rate = version.Rate.Value,
+                        effectiveFrom = version.EffectiveFrom,
+                        effectiveTo = version.EffectiveTo
+                    }),
+                correlationId,
+                changedAt));
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return TariffVersionCloseOutcome.Closed;
+    }
+
     public async Task<TariffVersionPersistenceResult> CreateAsync(
         TariffVersion version,
         string actorId,

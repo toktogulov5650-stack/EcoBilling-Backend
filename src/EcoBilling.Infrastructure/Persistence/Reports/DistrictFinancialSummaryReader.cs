@@ -14,9 +14,10 @@ public sealed class DistrictFinancialSummaryReader(EcoBillingDbContext dbContext
             .AsNoTracking()
             .SumAsync(charge => (decimal?)charge.Amount, cancellationToken) ?? 0m;
 
-        var totalPayments = await dbContext.Payments
+        var payments = await dbContext.Payments
             .AsNoTracking()
-            .SumAsync(payment => (decimal?)payment.Amount.Value, cancellationToken) ?? 0m;
+            .ToListAsync(cancellationToken);
+        var totalPayments = payments.Sum(payment => payment.Amount.Value);
 
         var allocated = await dbContext.PaymentAllocations
             .AsNoTracking()

@@ -4,6 +4,9 @@ using EcoBilling.Modules.Tariffs.Domain;
 using EcoBilling.Modules.Tariffs.Features.AssignToAccount;
 using EcoBilling.Modules.Tariffs.Features.Create;
 using EcoBilling.Modules.Tariffs.Features.CreateVersion;
+using EcoBilling.Modules.Tariffs.Features.GetById;
+using EcoBilling.Modules.Tariffs.Features.GetForAccount;
+using EcoBilling.Modules.Tariffs.Features.GetVersionById;
 using EcoBilling.Modules.Tariffs.Features.List;
 using EcoBilling.Modules.Tariffs.Features.ListVersions;
 
@@ -20,10 +23,21 @@ public static class TariffManagementEndpoints
 
         group.MapPost("", CreateAsync).WithName("CreateTariff");
         group.MapGet("", ListAsync).WithName("ListTariffs");
+        group.MapGet("/{tariffId:guid}", GetByIdAsync)
+            .WithName("GetTariffById");
         group.MapPost("/{tariffId:guid}/versions", CreateVersionAsync)
             .WithName("CreateTariffVersion");
         group.MapGet("/{tariffId:guid}/versions", ListVersionsAsync)
             .WithName("ListTariffVersions");
+        group.MapGet("/{tariffId:guid}/versions/{versionId:guid}", GetVersionByIdAsync)
+            .WithName("GetTariffVersionById");
+
+        endpoints.MapGet(
+                "/api/v1/accounts/{accountId:guid}/tariff",
+                GetAccountTariffAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Tariffs")
+            .WithName("GetAccountEffectiveTariff");
 
         endpoints.MapPost(
                 "/api/v1/accounts/{accountId:guid}/tariff-assignments",
@@ -33,6 +47,76 @@ public static class TariffManagementEndpoints
             .WithName("AssignTariffToAccount");
 
         return endpoints;
+    }
+
+    private static async Task<IResult> GetByIdAsync(
+        Guid tariffId,
+        HttpContext httpContext,
+        GetTariffByIdHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (tariffId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(httpContext, TariffErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new GetTariffByIdQuery(new TariffId(tariffId)),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> GetVersionByIdAsync(
+        Guid tariffId,
+        Guid versionId,
+        HttpContext httpContext,
+        GetTariffVersionByIdHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (tariffId == Guid.Empty || versionId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(httpContext, TariffErrors.VersionNotFound);
+        }
+
+        var result = await handler.Handle(
+            new GetTariffVersionByIdQuery(new TariffVersionId(versionId)),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return ApiProblemDetails.Create(httpContext, result.Error);
+        }
+
+        return result.Value.TariffId == tariffId
+            ? Results.Ok(result.Value)
+            : ApiProblemDetails.Create(httpContext, TariffErrors.VersionNotFound);
+    }
+
+    private static async Task<IResult> GetAccountTariffAsync(
+        Guid accountId,
+        DateOnly? date,
+        HttpContext httpContext,
+        GetAccountTariffHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (accountId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                AccountTariffAssignmentErrors.AccountNotFound);
+        }
+
+        var effectiveDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var result = await handler.Handle(
+            new GetAccountTariffQuery(new AccountId(accountId), effectiveDate),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> CreateAsync(

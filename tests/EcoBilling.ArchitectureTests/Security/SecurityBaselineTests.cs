@@ -48,6 +48,45 @@ public sealed class SecurityBaselineTests
         Assert.Contains("USER_AUTH_SIGNING_KEY=", environmentTemplate, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ReverseProxy_IsDisabledByDefaultAndRequiresExplicitTrustedProxy()
+    {
+        var appSettings = ReadRepositoryFile("src", "EcoBilling.Api", "appsettings.json");
+        var compose = ReadRepositoryFile("deploy", "compose.yml");
+
+        Assert.Contains("\"Enabled\": false", appSettings, StringComparison.Ordinal);
+        Assert.Contains("ReverseProxy__Enabled", compose, StringComparison.Ordinal);
+        Assert.Contains("ReverseProxy__KnownProxies__0", compose, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "ASPNETCORE_FORWARDEDHEADERS_ENABLED",
+            compose,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProductionPostgresRoleScripts_SeparateMigratorAndRuntimePrivileges()
+    {
+        var bootstrap = ReadRepositoryFile(
+            "deploy",
+            "postgres",
+            "bootstrap-production-roles.sql");
+        var grants = ReadRepositoryFile(
+            "deploy",
+            "postgres",
+            "grant-runtime.sql");
+
+        Assert.Contains("ecobilling_migrator", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("ecobilling_runtime", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOCREATEDB", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOCREATEROLE", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("GRANT CREATE ON DATABASE", bootstrap, StringComparison.Ordinal);
+
+        Assert.Contains("TO ecobilling_runtime", grants, StringComparison.Ordinal);
+        Assert.Contains("REVOKE UPDATE, DELETE", grants, StringComparison.Ordinal);
+        Assert.Contains("infrastructure.audit_logs", grants, StringComparison.Ordinal);
+        Assert.Contains("ALTER DEFAULT PRIVILEGES", grants, StringComparison.Ordinal);
+    }
+
     private static string ReadRepositoryFile(params string[] pathParts) =>
         File.ReadAllText(
             Path.Combine(

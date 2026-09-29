@@ -1,3 +1,5 @@
+using System.Text.Json;
+using EcoBilling.Infrastructure.Auditing;
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Identity.Domain;
 using Microsoft.EntityFrameworkCore;
@@ -96,6 +98,67 @@ public sealed class RefreshSessionRepository(EcoBillingDbContext dbContext)
         }
 
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<UserSessionRevocationResult> RevokeAllForUserAsync(
+        UserId userId,
+        string actorId,
+        string correlationId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(userId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+
+        var utcNow = now.ToUniversalTime();
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            cancellationToken);
+
+        var userExists = await dbContext.UserAccounts
+            .AsNoTracking()
+            .AnyAsync(account => account.Id == userId, cancellationToken);
+        if (!userExists)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new UserSessionRevocationResult(
+                UserSessionRevocationOutcome.UserNotFound);
+        }
+
+        var revokedSessions = await dbContext.RefreshSessions
+            .Where(session =>
+                session.UserId == userId &&
+                session.RevokedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    session => session.RevokedAt,
+                    utcNow),
+                cancellationToken);
+
+        dbContext.AuditLogs.Add(
+            new AuditLog(
+                Guid.NewGuid(),
+                "User",
+                actorId,
+                "identity.user.sessions_revoked",
+                "UserAccount",
+                userId.Value.ToString("D"),
+                beforeData: null,
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        userId = userId.Value,
+                        revokedSessions
+                    }),
+                correlationId,
+                utcNow));
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new UserSessionRevocationResult(
+            UserSessionRevocationOutcome.Revoked,
+            revokedSessions);
     }
 
     private Task<int> RevokeFamilyAsync(

@@ -5,6 +5,7 @@ using EcoBilling.Modules.Controllers.Domain;
 using EcoBilling.Modules.Controllers.Features.AssignAddress;
 using EcoBilling.Modules.Controllers.Features.CreateController;
 using EcoBilling.Modules.Controllers.Features.GetMyAssignments;
+using EcoBilling.Modules.Controllers.Features.GetProfile;
 using EcoBilling.Modules.Controllers.Features.GetWorklist;
 using EcoBilling.Modules.Controllers.Features.RemoveAssignment;
 using EcoBilling.Modules.Identity.Domain;
@@ -50,6 +51,13 @@ public static class ControllerManagementEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
+
+        endpoints.MapGet(
+                "/api/v1/controllers/me/profile",
+                GetMyProfileAsync)
+            .RequireAuthorization(UserAuthenticationOptions.ControllerPolicy)
+            .WithName("GetMyControllerProfile")
+            .WithTags("Controllers");
 
         endpoints.MapGet(
                 "/api/v1/controllers/me/assignments",
@@ -158,6 +166,21 @@ public static class ControllerManagementEndpoints
         }
 
         return Results.NoContent();
+    }
+
+    private static async Task<IResult> GetMyProfileAsync(
+        HttpContext httpContext,
+        GetControllerProfileHandler handler,
+        CancellationToken cancellationToken)
+    {
+        var result = await handler.Handle(
+            new GetControllerProfileQuery(
+                UserRequestContext.GetUserId(httpContext)),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> GetMyAssignmentsAsync(

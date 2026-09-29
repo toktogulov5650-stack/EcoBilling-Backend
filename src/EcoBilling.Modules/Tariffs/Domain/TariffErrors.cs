@@ -34,6 +34,11 @@ public static class TariffErrors
         "A tariff with the same name already exists.",
         ErrorType.Conflict);
 
+    public static Error VersionAlreadyClosed { get; } = new(
+        "tariff.version_already_closed",
+        "The tariff version is already closed at an earlier date.",
+        ErrorType.Conflict);
+
     public static Error OverlappingPeriod { get; } = new(
         "tariff.version_period_overlap",
         "The tariff already has a version overlapping the requested period.",

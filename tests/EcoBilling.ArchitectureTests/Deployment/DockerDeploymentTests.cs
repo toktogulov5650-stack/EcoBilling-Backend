@@ -29,7 +29,8 @@ public sealed class DockerDeploymentTests
     {
         var compose = ReadDeploymentFile("compose.yml");
 
-        Assert.Contains("image: postgres:17-alpine", compose, StringComparison.Ordinal);
+        Assert.Contains("image: ecobilling-postgres:latest", compose, StringComparison.Ordinal);
+        Assert.Contains("dockerfile: deploy/Dockerfile.postgres", compose, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings__EcoBilling", compose, StringComparison.Ordinal);
         Assert.DoesNotContain("ConnectionStrings__Database", compose, StringComparison.Ordinal);
         Assert.Contains("${POSTGRES_PASSWORD:?", compose, StringComparison.Ordinal);

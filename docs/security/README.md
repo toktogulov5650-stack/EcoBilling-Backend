@@ -1,43 +1,53 @@
 # Безопасность и готовность к выпуску
 
-Проверка выполнена 28 сентября 2026 года для состояния репозитория после этапа 21. Она охватывает исходный код, конфигурацию, зависимости NuGet, CI, контейнерные манифесты, документированные секреты и существующие автоматические тесты. Это проверка текущей технической основы, а не аудит ещё не реализованных пользовательских сценариев.
+Актуализировано 29 сентября 2026 года после завершения backend v1 и production-readiness hardening. Проверка охватывает исходный код, конфигурацию, зависимости, CI, контейнерные манифесты, миграции и автоматизированные тесты.
 
 ## Решение о выпуске
 
-Текущее решение для production: **NO-GO**.
+Backend подходит для development и staging. Для production статус остаётся **NO-GO до закрытия environment-specific блокеров**.
 
-Состояние подходит для разработки, integration и изолированного staging. Production-выпуск блокируют не ошибки сборки, а незакрытые эксплуатационные решения и уязвимости используемого контейнерного образа PostgreSQL. Основные бизнес-сценарии, перечисленные в [статусе проекта](../project-status.md), пока реализованы не полностью.
+Причина NO-GO — не отсутствие основных бизнес-сценариев. Основной v1 backend реализован и проходит CI. Блокеры относятся к реальному production окружению, внешним интеграциям и эксплуатационным доказательствам.
 
-## Подтверждённые меры
+## Реализованные защитные меры
 
-- NuGet audit включён централизованно для прямых и транзитивных зависимостей с уровнем `low`; текущая проверка advisories не нашла уязвимых пакетов.
-- GitHub Actions закреплены полными commit SHA, workflow имеют минимальные read-only permissions и выполняют Release build/test, PostgreSQL integration и проверку Compose.
-- В отслеживаемых файлах не обнаружены private keys, production connection strings или реальные production-секреты. `deploy/.env`, локальные appsettings и user secrets игнорируются.
-- API не принимает произвольный `Host`: `AllowedHosts` не может быть wildcard, а Compose требует явный `ALLOWED_HOSTS`.
-- Внутренний endpoint защищён RS256 JWT с точными issuer/audience, обязательными `kid`, scope и `jti`; replay и идемпотентность защищены в PostgreSQL.
-- Production-код не включает sensitive-data logging. Problem Details не раскрывает исключения или строки подключения.
-- Worker не передаёт объект исключения и его сообщение в лог; остаётся только технический тип ошибки.
-- Runtime-контейнеры non-root, read-only, без Linux capabilities и с `no-new-privileges`; миграции выполняет отдельный service.
+- NuGet audit включён для прямых и транзитивных зависимостей.
+- GitHub Actions используют SHA-pinned actions, read-only permissions, Release build/test, настоящую PostgreSQL, Compose validation и container build.
+- Публичной регистрации нет.
+- User authentication использует короткоживущий access JWT, hash-only refresh storage, rotation, token-family revoke при replay и persisted lockout.
+- Authentication endpoints защищены rate limiting.
+- Director может отозвать все refresh sessions конкретного пользователя через отдельный role-protected endpoint; операция аудируется.
+- Internal provisioning использует отдельный RS256 JWT contract с issuer/audience, `kid`, scope и `jti` replay protection.
+- User JWT signing keys поддерживают `kid` и безопасную ротацию.
+- `AllowedHosts` не допускает wildcard в deployment.
+- Forwarded headers по умолчанию не доверяются. Их обработка включается только при явном `ReverseProxy:Enabled=true` и списке точных trusted proxy IP.
+- Problem Details не возвращает exception detail, connection strings, tokens или credentials.
+- API/Worker не включают sensitive-data logging.
+- Mutation-сценарии записывают AuditLog атомарно с бизнес-изменением.
+- Runtime-контейнеры non-root, read-only, без Linux capabilities и с `no-new-privileges`.
+- Миграции вынесены в отдельный container target.
+- В `deploy/postgres` есть воспроизводимые SQL scripts для разделения `ecobilling_migrator` и `ecobilling_runtime` и применения runtime grants.
 
-## Блокеры production
+## Production блокеры
 
-| Блокер | Требуемое закрытие |
+| Блокер | Что требуется перед GO |
 |---|---|
-| Образ `postgres:17-alpine` | На момент проверки Docker Scout обнаруживает 2 Critical и 21 High fixable CVE в Go standard library внутри актуального локального образа. Нужен обновлённый официальный образ либо документированное VEX/risk acceptance после проверки достижимости. |
-| Секреты | Выбрать production secret store, разграничить доступ и утвердить процедуры выдачи, ротации и отзыва. |
-| PostgreSQL-роли | Разделить migration и runtime credentials, определить минимальные grants и проверить их тестовым развёртыванием. |
-| Сетевая граница | Настроить TLS termination, доверенные proxy/ingress, forwarded headers, allowlist hosts и сетевые политики для конкретного окружения. |
-| Данные и восстановление | Утвердить backup/restore, выполнить пробное восстановление и назначить RPO, RTO, SLA и сроки хранения. |
-| Наблюдаемость | Выбрать backend/collector, sampling, dashboards, alerts, получателей и сроки хранения telemetry. |
-| Выпуск контейнеров | Просканировать окончательные immutable images после сборки, установить CVE threshold, SBOM/VEX и срок устранения уязвимостей. |
+| Secret store | Выбрать реальное хранилище секретов, RBAC, rotation/revoke процедуру и аварийный доступ. Не хранить production secrets в `.env`, Git или image layers. |
+| PostgreSQL credentials | Применить отдельные migrator/runtime роли в целевой БД, хранить их secrets отдельно и проверить deployment с минимальными grants. |
+| TLS / ingress | Настроить TLS termination, exact `AllowedHosts`, trusted proxy IP и network policy/firewall. |
+| Backup / restore | Утвердить RPO/RTO/retention, выполнить backup и доказуемый restore test на отдельном окружении. |
+| Observability | Подключить OTLP collector/backend, определить sampling, dashboards, alert thresholds и recipients. |
+| Container supply chain | Просканировать финальные immutable images/digests, сохранить SBOM, определить CVE threshold и documented risk acceptance. |
+| Migration rehearsal | Прогнать migrations на копии БД с реалистичным объёмом, измерить lock/downtime и проверить forward-fix/rollback procedure. |
+| Temporary staff credentials | Утвердить безопасный канал передачи initial credential Director/Controller; API не должен отправлять секрет через обычный response/log. |
+| External payment provider | Если нужна онлайн-оплата: provider callback, signature validation, replay protection, refunds и reconciliation. |
+| External Outbox transport | Выбрать broker/transport и зарегистрировать реальный `IOutboxMessagePublisher`; Outbox Worker нельзя включать без publisher. |
 
-Локальные `ecobilling-api`, `ecobilling-worker` и `ecobilling-migrations` успешно собраны. Их отправка или передача SBOM/метаданных внешнему scanner не выполнялась без отдельного разрешения владельца кода; поэтому отсутствие CVE в этих трёх images не подтверждено.
+## Остаточные продуктовые ограничения v1
 
-## Остаточные риски
-
-- Пользовательский login, access/refresh rotation, persisted lockout и replay detection реализованы. Общий rate limiting, административный revoke пользователя и доставка временных credentials ещё должны быть закрыты до внешней публикации API.
-- Обновления test tooling до следующих major-версий доступны, но не содержат известного security advisory в текущем audit. Они отложены до отдельного совместимого изменения.
-- Статический поиск секретов и dependency audit не заменяют централизованный secret scanning, SAST/DAST и периодический пересмотр threat model.
+- Billing через период, в котором участвует несколько Meter после замены, намеренно блокируется до утверждения формулы.
+- Льготы, нормативы, пени и сложные перерасчёты не симулируются.
+- Payment provider workflow отсутствует; поддерживается только ручная регистрация уже подтверждённого платежа Director.
+- Monthly Billing и Outbox schedules в Compose по умолчанию выключены и включаются оператором после проверки зависимостей.
 
 ## Воспроизводимая проверка
 
@@ -47,6 +57,7 @@ dotnet package list --project EcoBilling.slnx --include-transitive --vulnerable 
 dotnet build EcoBilling.slnx --configuration Release --no-restore
 dotnet test EcoBilling.slnx --configuration Release --no-build
 docker compose --env-file deploy/.env.example --file deploy/compose.yml config --quiet
+docker compose --env-file deploy/.env.example --file deploy/compose.yml build api worker migrations
 ```
 
-Решение может быть изменено на GO только после закрытия применимых блокеров с проверяемыми доказательствами и повторного полного прогона.
+GO для production возможен только после закрытия применимых блокеров с проверяемыми evidence для конкретного окружения. Код не должен объявлять внешнюю инфраструктуру «готовой» только потому, что локальный Compose запускается.

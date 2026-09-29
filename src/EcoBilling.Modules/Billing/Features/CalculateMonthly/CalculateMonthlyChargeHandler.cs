@@ -76,6 +76,9 @@ public sealed class CalculateMonthlyChargeHandler(
             BillingCalculationPersistenceOutcome.TariffVersionNotFound =>
                 Result<CalculateMonthlyChargeResult>.Failure(
                     ChargeErrors.TariffVersionNotFound),
+            BillingCalculationPersistenceOutcome.TariffPeriodChangeRequiresPolicy =>
+                Result<CalculateMonthlyChargeResult>.Failure(
+                    ChargeErrors.TariffPeriodChangeRequiresPolicy),
             BillingCalculationPersistenceOutcome.InvalidConsumption =>
                 Result<CalculateMonthlyChargeResult>.Failure(
                     ChargeErrors.InvalidAmount),

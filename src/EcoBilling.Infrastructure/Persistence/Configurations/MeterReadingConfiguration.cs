@@ -43,7 +43,7 @@ internal sealed class MeterReadingConfiguration
 
         builder.Property(reading => reading.Value)
             .HasColumnName("value")
-            .HasColumnType("numeric(18,3)")
+            .HasColumnType("numeric")
             .HasConversion(
                 readingValue => readingValue.Value,
                 value => ReadingValue.Create(value).Value)
@@ -68,6 +68,7 @@ internal sealed class MeterReadingConfiguration
         builder.Property(reading => reading.Source)
             .HasColumnName("source")
             .HasConversion<int>()
+            .HasDefaultValue(ReadingSource.Import)
             .IsRequired();
 
         builder.Property(reading => reading.SupersedesReadingId)

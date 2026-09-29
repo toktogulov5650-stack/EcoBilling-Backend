@@ -65,20 +65,34 @@ public sealed class BillingCalculationRepository(
                 BillingCalculationPersistenceOutcome.AccountNotFound);
         }
 
-        var meter = await dbContext.Meters
+        var periodStartUtc = ToUtc(periodStart);
+        var periodEndUtc = ToUtc(periodEnd);
+
+        var periodMeters = await dbContext.Meters
             .AsNoTracking()
-            .Where(existing => existing.AccountId == accountId && existing.IsActive)
-            .OrderByDescending(existing => existing.InstalledAt)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (meter is null)
+            .Where(
+                meter =>
+                    meter.AccountId == accountId &&
+                    meter.InstalledAt < periodEndUtc &&
+                    (meter.RetiredAt == null || meter.RetiredAt >= periodStartUtc))
+            .OrderBy(meter => meter.InstalledAt)
+            .ToListAsync(cancellationToken);
+
+        if (periodMeters.Count == 0)
         {
             await transaction.CommitAsync(cancellationToken);
             return new BillingCalculationPersistenceResult(
                 BillingCalculationPersistenceOutcome.MeterNotFound);
         }
 
-        var periodStartUtc = ToUtc(periodStart);
-        var periodEndUtc = ToUtc(periodEnd);
+        if (periodMeters.Count > 1)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new BillingCalculationPersistenceResult(
+                BillingCalculationPersistenceOutcome.MultipleMetersRequirePolicy);
+        }
+
+        var meter = periodMeters[0];
 
         var previousReading = await EffectiveReadings(meter.Id)
             .Where(reading => reading.MeasuredAt < periodStartUtc)

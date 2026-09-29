@@ -132,7 +132,7 @@ Rollback миграции удаляет таблицу и schema `meters`, не
 | `measured_at` | `timestamp with time zone` | NOT NULL, UTC |
 | `created_at` | `timestamp with time zone` | NOT NULL, UTC |
 
-Неуникальный индекс `ix_meter_readings_meter_id_measured_at` создан по `(meter_id, measured_at)`. Precision и scale для `value`, уникальность времени измерения и проверка монотонности не вводятся до утверждения бизнес-правил.
+Неуникальный индекс `ix_meter_readings_meter_id_measured_at` создан по `(meter_id, measured_at)`. Финальная модель v1 дополнительно хранит optional `author_user_id`, `source`, optional `supersedes_reading_id` и `correction_reason`; `supersedes_reading_id` имеет filtered unique index. Монотонность обычных показаний и backdated/correction rules проверяются application layer.
 
 Сгенерированный rollback дополнен удалением пустой schema `readings`, чтобы откат был симметричен применению миграции. Он не затрагивает Meters.
 
@@ -179,7 +179,7 @@ Precision и scale ставки не фиксируются до утвержд�
 
 Уникальный индекс `ux_charges_account_id_period_start_period_end` предотвращает точный повтор начисления одного периода для Account. Индекс `ix_charges_tariff_version_id` поддерживает связь с исторической версией тарифа.
 
-Миграция не создаёт формулу, статус или баланс. Rollback удаляет таблицу и schema `billing`, не затрагивая Accounts и Tariffs.
+Финальная модель v1 дополнительно хранит `previous_reading_id`, `current_reading_id`, `consumption`, `calculation_version` и `currency`; формула и правила выбора входных данных реализованы application layer. Rollback удаляет таблицу и schema `billing`, не затрагивая Accounts и Tariffs.
 
 ## Payments
 
@@ -196,13 +196,13 @@ Precision и scale ставки не фиксируются до утвержд�
 
 Индекс `ix_payments_account_id` поддерживает получение истории Account. Уникальный индекс `ux_payments_idempotency_key` обеспечивает базовую идемпотентность; сравнение ключей регистрозависимо, значение сохраняется без нормализации.
 
-Миграция не создаёт ProviderReference, callback, статус, распределение по начислениям или баланс. Rollback удаляет таблицу и schema `payments`, не затрагивая Accounts или Billing.
+Финальная модель v1 добавляет `payments.payment_allocations` для распределения Payment по Charge; нераспределённый остаток отражается в `accounts.accounts.overpayment`. Provider callback/refund/reconciliation остаются внешней интеграцией. Rollback удаляет таблицу и schema `payments`, не затрагивая Accounts или Billing.
 
 ## Reports
 
 Reports не создаёт отдельную schema, таблицу или миграцию. `DistrictOperationalSummary` выполняет один read-only PostgreSQL statement с `count(*)` по существующим таблицам модулей и не создаёт вторичный источник истины.
 
-Финансовые суммы, задолженность и показатели работы контроллеров не вычисляются до утверждения соответствующих правил. Для тяжёлых отчётов в будущем должен использоваться Worker, а не длительный синхронный HTTP-запрос.
+Reports v1 вычисляют operational и financial read models из существующих таблиц, включая charges, payments, debt, overpayment, consumption и показатели Controller. Для тяжёлых отчётов в будущем должен использоваться Worker, а не длительный синхронный HTTP-запрос.
 
 ## Audit и Outbox
 

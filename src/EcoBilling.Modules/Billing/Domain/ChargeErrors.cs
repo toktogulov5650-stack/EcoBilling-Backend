@@ -64,6 +64,11 @@ public static class ChargeErrors
         "No tariff version is effective for the billing period.",
         ErrorType.Validation);
 
+    public static Error TariffPeriodChangeRequiresPolicy { get; } = new(
+        "billing.tariff_period_change_requires_policy",
+        "The billing period crosses a tariff assignment or tariff version boundary and requires an approved calculation rule.",
+        ErrorType.Validation);
+
     public static Error AlreadyCalculated { get; } = new(
         "billing.already_calculated",
         "The account already has a charge for the requested billing period.",

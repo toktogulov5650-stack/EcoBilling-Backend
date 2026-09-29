@@ -71,6 +71,30 @@ public sealed class DockerDeploymentTests
     }
 
     [Fact]
+    public void ProductionPostgresRoleScripts_SeparateMigratorAndRuntime()
+    {
+        var bootstrap = File.ReadAllText(
+            Path.Combine(
+                RepositoryPaths.RepositoryRoot,
+                "deploy",
+                "postgres",
+                "bootstrap-production-roles.sql"));
+        var grants = File.ReadAllText(
+            Path.Combine(
+                RepositoryPaths.RepositoryRoot,
+                "deploy",
+                "postgres",
+                "grant-runtime.sql"));
+
+        Assert.Contains("ecobilling_migrator", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("ecobilling_runtime", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOSUPERUSER", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOCREATEDB", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("REVOKE UPDATE, DELETE", grants, StringComparison.Ordinal);
+        Assert.Contains("infrastructure.audit_logs", grants, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DockerBuildContext_ExcludesLocalEnvironmentFiles()
     {
         var dockerIgnore = File.ReadAllText(

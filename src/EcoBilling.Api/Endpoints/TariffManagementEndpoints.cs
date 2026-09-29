@@ -2,12 +2,14 @@ using EcoBilling.Api.Configuration;
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Tariffs.Domain;
 using EcoBilling.Modules.Tariffs.Features.AssignToAccount;
+using EcoBilling.Modules.Tariffs.Features.CloseAssignment;
 using EcoBilling.Modules.Tariffs.Features.Create;
 using EcoBilling.Modules.Tariffs.Features.CreateVersion;
 using EcoBilling.Modules.Tariffs.Features.GetById;
 using EcoBilling.Modules.Tariffs.Features.GetForAccount;
 using EcoBilling.Modules.Tariffs.Features.GetVersionById;
 using EcoBilling.Modules.Tariffs.Features.List;
+using EcoBilling.Modules.Tariffs.Features.ListAssignments;
 using EcoBilling.Modules.Tariffs.Features.ListVersions;
 
 namespace EcoBilling.Api.Endpoints;
@@ -31,6 +33,20 @@ public static class TariffManagementEndpoints
             .WithName("ListTariffVersions");
         group.MapGet("/{tariffId:guid}/versions/{versionId:guid}", GetVersionByIdAsync)
             .WithName("GetTariffVersionById");
+
+        endpoints.MapGet(
+                "/api/v1/accounts/{accountId:guid}/tariff-assignments",
+                ListAccountTariffAssignmentsAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Tariffs")
+            .WithName("ListAccountTariffAssignments");
+
+        endpoints.MapPut(
+                "/api/v1/accounts/{accountId:guid}/tariff-assignments/{assignmentId:guid}/end",
+                CloseAssignmentAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Tariffs")
+            .WithName("CloseAccountTariffAssignment");
 
         endpoints.MapGet(
                 "/api/v1/accounts/{accountId:guid}/tariff",
@@ -93,6 +109,55 @@ public static class TariffManagementEndpoints
         return result.Value.TariffId == tariffId
             ? Results.Ok(result.Value)
             : ApiProblemDetails.Create(httpContext, TariffErrors.VersionNotFound);
+    }
+
+    private static async Task<IResult> ListAccountTariffAssignmentsAsync(
+        Guid accountId,
+        HttpContext httpContext,
+        ListAccountTariffAssignmentsHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (accountId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                AccountTariffAssignmentErrors.AccountNotFound);
+        }
+
+        var result = await handler.Handle(
+            new ListAccountTariffAssignmentsQuery(new AccountId(accountId)),
+            cancellationToken);
+
+        return Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> CloseAssignmentAsync(
+        Guid accountId,
+        Guid assignmentId,
+        CloseTariffAssignmentRequest request,
+        HttpContext httpContext,
+        CloseTariffAssignmentHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (accountId == Guid.Empty || assignmentId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(
+                httpContext,
+                AccountTariffAssignmentErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new CloseTariffAssignmentCommand(
+                new AccountId(accountId),
+                new AccountTariffAssignmentId(assignmentId),
+                request.EffectiveTo,
+                UserRequestContext.GetUserId(httpContext).Value.ToString("D"),
+                httpContext.TraceIdentifier),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.NoContent();
     }
 
     private static async Task<IResult> GetAccountTariffAsync(
@@ -247,3 +312,5 @@ public sealed record TariffMutationResponse(Guid TariffId, string Status);
 public sealed record TariffVersionMutationResponse(
     Guid TariffVersionId,
     string Status);
+
+public sealed record CloseTariffAssignmentRequest(DateOnly EffectiveTo);

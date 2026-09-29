@@ -33,6 +33,25 @@ public sealed class SecurityBaselineTests
     }
 
     [Fact]
+    public void ForwardedHeaders_AreDisabledByDefaultAndRequireExplicitTrustedProxy()
+    {
+        using var document = JsonDocument.Parse(
+            ReadRepositoryFile("src", "EcoBilling.Api", "appsettings.json"));
+        var reverseProxy = document.RootElement.GetProperty("ReverseProxy");
+        var compose = ReadRepositoryFile("deploy", "compose.yml");
+
+        Assert.False(reverseProxy.GetProperty("Enabled").GetBoolean());
+        Assert.Contains(
+            "ReverseProxy__Enabled: ${REVERSE_PROXY_ENABLED:-false}",
+            compose,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "ReverseProxy__KnownProxies__0: ${TRUSTED_PROXY_IP:-}",
+            compose,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void UserJwtSigningKey_IsRequiredFromEnvironmentAndNotStoredInAppSettings()
     {
         var appSettings = ReadRepositoryFile("src", "EcoBilling.Api", "appsettings.json");

@@ -134,11 +134,21 @@ public sealed class MeterReadingRepository(EcoBillingDbContext dbContext)
 
             if (latest is not null)
             {
-                if (!actorIsDirector && reading.MeasuredAt < latest.MeasuredAt)
+                if (reading.MeasuredAt < latest.MeasuredAt)
                 {
-                    await transaction.CommitAsync(cancellationToken);
-                    return new ReadingPersistenceResult(
-                        ReadingPersistenceOutcome.BackdatedRequiresDirector);
+                    if (!actorIsDirector)
+                    {
+                        await transaction.CommitAsync(cancellationToken);
+                        return new ReadingPersistenceResult(
+                            ReadingPersistenceOutcome.BackdatedRequiresDirector);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(reading.CorrectionReason))
+                    {
+                        await transaction.CommitAsync(cancellationToken);
+                        return new ReadingPersistenceResult(
+                            ReadingPersistenceOutcome.BackdatedReasonRequired);
+                    }
                 }
 
                 if (reading.Value.Value < latest.Value.Value)

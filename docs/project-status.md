@@ -1,6 +1,6 @@
 # Статус реализации EcoBilling
 
-Состояние ветки `feature/complete-v1-backend` после завершения основной функциональной реализации v1. Этот документ описывает фактически написанный код; финальная подтверждённая готовность определяется только после полного build/test/migration/CI прогона.
+Состояние ветки `feature/complete-v1-backend` после завершения основной функциональной реализации и автоматизированного verification pass для v1. Последний CI полностью зелёный: restore, Release build, architecture tests, unit tests, PostgreSQL integration tests, E2E, Docker Compose validation и сборка container images прошли успешно.
 
 ## Реализованный функционал
 
@@ -75,19 +75,21 @@
 
 Для этих пунктов код не создаёт фиктивное успешное поведение.
 
-## Следующий этап проверки
+## Verification status
 
-После завершения source-кода выполняется отдельный verification pass:
+Автоматизированный verification pass завершён успешно:
 
-1. restore и Release build;
-2. исправление compile/warnings-as-errors;
-3. генерация финальной EF migration и ModelSnapshot;
-4. unit tests;
-5. PostgreSQL integration tests;
-6. architecture tests;
-7. E2E journeys;
-8. migration fresh-db/upgrade checks;
-9. Docker Compose / Worker / health checks;
-10. CI и security regression.
+1. `dotnet restore` — успешно;
+2. Release build — успешно;
+3. EF Core migrations и ModelSnapshot синхронизированы;
+4. Architecture tests — 30/30;
+5. Unit tests — 305/305;
+6. PostgreSQL integration tests — 197/197;
+7. E2E journeys — 4/4;
+8. Docker Compose validation — успешно;
+9. container images `api`, `worker`, `migrations` — успешно;
+10. GitHub Actions CI — зелёный.
 
-До успешного завершения этого прогона ветка не считается production-ready.
+Итого автоматизированных тестов: 536/536.
+
+Ветка является проверенным v1 backend candidate. До фактического production deployment отдельно должны быть утверждены и настроены внешние operational-зависимости из раздела «Что намеренно не симулируется»: secrets, ingress/TLS, backup/restore, observability backend, внешний Outbox transport и payment provider integration, если они требуются для выбранной площадки.

@@ -20,12 +20,19 @@ public static class TariffManagementEndpoints
     public static IEndpointRouteBuilder MapTariffManagementEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapPost("/api/v1/tariffs", CreateAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Tariffs")
+            .WithName("CreateTariff");
+
+        endpoints.MapGet("/api/v1/tariffs", ListAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Tariffs")
+            .WithName("ListTariffs");
+
         var group = endpoints.MapGroup("/api/v1/tariffs")
             .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
             .WithTags("Tariffs");
-
-        group.MapPost("", CreateAsync).WithName("CreateTariff");
-        group.MapGet("", ListAsync).WithName("ListTariffs");
         group.MapGet("/{tariffId:guid}", GetByIdAsync)
             .WithName("GetTariffById");
         group.MapPost("/{tariffId:guid}/versions", CreateVersionAsync)

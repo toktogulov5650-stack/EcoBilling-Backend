@@ -4,11 +4,6 @@ using EcoBilling.SharedKernel.Results;
 
 namespace EcoBilling.Modules.Identity.Application.Tokens;
 
-public sealed record RevokeUserSessionsCommand(
-    UserId UserId,
-    string ActorId,
-    string CorrelationId);
-
 public sealed record RevokeUserSessionsResult(
     UserId UserId,
     int RevokedSessions);

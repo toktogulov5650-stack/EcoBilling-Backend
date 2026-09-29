@@ -100,6 +100,8 @@ public sealed class AddMeterReadingHandler
                     MeterReadingErrors.BackdatedReasonRequired),
             ReadingPersistenceOutcome.SupersededReadingNotFound =>
                 Result<MeterReadingId>.Failure(MeterReadingErrors.NotFound),
+            ReadingPersistenceOutcome.SupersededReadingAlreadyCorrected =>
+                Result<MeterReadingId>.Failure(MeterReadingErrors.AlreadyCorrected),
             _ => throw new InvalidOperationException(
                 $"Unexpected reading persistence outcome: {outcome.Outcome}.")
         };

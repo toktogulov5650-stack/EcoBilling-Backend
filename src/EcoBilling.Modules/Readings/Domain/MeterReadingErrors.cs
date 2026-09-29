@@ -34,6 +34,11 @@ public static class MeterReadingErrors
         "A backdated reading requires Director authority and a reason.",
         ErrorType.Forbidden);
 
+    public static Error BackdatedReasonRequired { get; } = new(
+        "reading.backdated_reason_required",
+        "A backdated reading requires a reason.",
+        ErrorType.Validation);
+
     public static Error InvalidSource { get; } = new(
         "reading.invalid_source",
         "The reading source is invalid.",

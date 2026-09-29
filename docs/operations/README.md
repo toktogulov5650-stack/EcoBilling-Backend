@@ -93,3 +93,14 @@ SQL scripts:
 После deployment обязательно проверить negative permissions runtime role, а не только успешный health check.
 
 Полный go/no-go список: [production readiness checklist](production-readiness.md).
+
+## Backup / restore drill
+
+Репозиторий содержит два operator helper script:
+
+- `deploy/postgres/backup.ps1` — создаёт custom-format `pg_dump` и выводит SHA256;
+- `deploy/postgres/restore-test.ps1` — восстанавливает backup в отдельную базу и проверяет наличие EF migration history.
+
+Пароль передаётся только через `PGPASSWORD` из secret environment оператора.
+
+Успех script не закрывает production readiness автоматически. Нужно также зафиксировать фактические duration, backup timestamp, restore timestamp, размер backup, RPO/RTO result и application smoke validation.

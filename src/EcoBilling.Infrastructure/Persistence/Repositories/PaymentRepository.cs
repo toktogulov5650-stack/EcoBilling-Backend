@@ -58,10 +58,11 @@ public sealed class PaymentRepository(EcoBillingDbContext dbContext)
             .Where(charge => charge.AccountId == accountId)
             .SumAsync(charge => (decimal?)charge.Amount, cancellationToken) ?? 0m;
 
-        var totalPayments = await dbContext.Payments
+        var accountPayments = await dbContext.Payments
             .AsNoTracking()
             .Where(payment => payment.AccountId == accountId)
-            .SumAsync(payment => (decimal?)payment.Amount.Value, cancellationToken) ?? 0m;
+            .ToListAsync(cancellationToken);
+        var totalPayments = accountPayments.Sum(payment => payment.Amount.Value);
 
         var totalAllocated = await (
             from allocation in dbContext.PaymentAllocations.AsNoTracking()

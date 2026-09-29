@@ -28,4 +28,14 @@ public static class TariffErrors
         "tariff.version_not_found",
         "The tariff version was not found.",
         ErrorType.NotFound);
+
+    public static Error NameAlreadyExists { get; } = new(
+        "tariff.name_already_exists",
+        "A tariff with the same name already exists.",
+        ErrorType.Conflict);
+
+    public static Error OverlappingPeriod { get; } = new(
+        "tariff.version_period_overlap",
+        "The tariff already has a version overlapping the requested period.",
+        ErrorType.Conflict);
 }

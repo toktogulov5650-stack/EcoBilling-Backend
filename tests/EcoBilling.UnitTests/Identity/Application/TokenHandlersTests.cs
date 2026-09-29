@@ -92,6 +92,59 @@ public sealed class TokenHandlersTests
     }
 
     [Fact]
+    public async Task RevokeAllForUser_UsesActorCorrelationAndCurrentTime()
+    {
+        var userId = new UserId(Guid.NewGuid());
+        var sessions = new RecordingRefreshSessionRepository
+        {
+            UserRevocationResult = new UserSessionRevocationResult(
+                UserSessionRevocationOutcome.Revoked,
+                3)
+        };
+        var handler = new RevokeUserSessionsHandler(
+            sessions,
+            new FixedTimeProvider(UtcNow));
+
+        var result = await handler.Handle(
+            new RevokeUserSessionsCommand(
+                userId,
+                "director-user-id",
+                "trace-123"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(userId, result.Value.UserId);
+        Assert.Equal(3, result.Value.RevokedSessions);
+        Assert.Equal(userId, sessions.ReceivedRevokedUserId);
+        Assert.Equal("director-user-id", sessions.ReceivedActorId);
+        Assert.Equal("trace-123", sessions.ReceivedCorrelationId);
+        Assert.Equal(UtcNow, sessions.ReceivedRevokeAllTime);
+    }
+
+    [Fact]
+    public async Task RevokeAllForUser_HidesMissingUserBehindNotFoundError()
+    {
+        var sessions = new RecordingRefreshSessionRepository
+        {
+            UserRevocationResult = new UserSessionRevocationResult(
+                UserSessionRevocationOutcome.UserNotFound)
+        };
+        var handler = new RevokeUserSessionsHandler(
+            sessions,
+            new FixedTimeProvider(UtcNow));
+
+        var result = await handler.Handle(
+            new RevokeUserSessionsCommand(
+                new UserId(Guid.NewGuid()),
+                "director-user-id",
+                "trace-123"),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(IdentityErrors.UserNotFound, result.Error);
+    }
+
+    [Fact]
     public async Task Revoke_HashesPresentedTokenAndIsSilentForEmptyValue()
     {
         var sessions = new RecordingRefreshSessionRepository();
@@ -179,6 +232,17 @@ public sealed class TokenHandlersTests
 
         public DateTimeOffset ReceivedRevocationTime { get; private set; }
 
+        public UserSessionRevocationResult UserRevocationResult { get; init; } =
+            new(UserSessionRevocationOutcome.Revoked);
+
+        public UserId? ReceivedRevokedUserId { get; private set; }
+
+        public string? ReceivedActorId { get; private set; }
+
+        public string? ReceivedCorrelationId { get; private set; }
+
+        public DateTimeOffset ReceivedRevokeAllTime { get; private set; }
+
         public Task CreateAsync(RefreshSession session, CancellationToken cancellationToken)
         {
             Created = session;
@@ -208,6 +272,20 @@ public sealed class TokenHandlersTests
             ReceivedRevocationHash = tokenHash;
             ReceivedRevocationTime = now;
             return Task.CompletedTask;
+        }
+
+        public Task<UserSessionRevocationResult> RevokeAllForUserAsync(
+            UserId userId,
+            string actorId,
+            string correlationId,
+            DateTimeOffset now,
+            CancellationToken cancellationToken)
+        {
+            ReceivedRevokedUserId = userId;
+            ReceivedActorId = actorId;
+            ReceivedCorrelationId = correlationId;
+            ReceivedRevokeAllTime = now;
+            return Task.FromResult(UserRevocationResult);
         }
     }
 

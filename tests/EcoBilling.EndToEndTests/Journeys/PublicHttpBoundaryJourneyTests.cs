@@ -14,18 +14,57 @@ public sealed class PublicHttpBoundaryJourneyTests
 
         var expectedPublicRoutes = new[]
         {
+            "/api/v1/accounts/by-number/{accountNumber}",
+            "/api/v1/accounts/{accountId:guid}/billing/{year:int}/{month:int}",
+            "/api/v1/accounts/{accountId:guid}/charges",
+            "/api/v1/accounts/{accountId:guid}/financial",
+            "/api/v1/accounts/{accountId:guid}/meters",
+            "/api/v1/accounts/{accountId:guid}/payments",
+            "/api/v1/accounts/{accountId:guid}/tariff",
+            "/api/v1/accounts/{accountId:guid}/tariff-assignments",
+            "/api/v1/accounts/{accountId:guid}/tariff-assignments/{assignmentId:guid}/end",
+            "/api/v1/addresses/{addressId:guid}",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
             "/api/v1/auth/revoke",
             "/api/v1/auth/setup-password",
+            "/api/v1/charges/{chargeId:guid}",
             "/api/v1/controllers",
+            "/api/v1/controllers/me/assignments",
+            "/api/v1/controllers/me/profile",
+            "/api/v1/controllers/me/worklist",
+            "/api/v1/controllers/{controllerId:guid}",
+            "/api/v1/controllers/{controllerId:guid}/assignments",
+            "/api/v1/controllers/{controllerId:guid}/assignments/{assignmentId:guid}",
+            "/api/v1/directors/me/profile",
+            "/api/v1/me/account",
+            "/api/v1/me/charges",
+            "/api/v1/me/financial",
+            "/api/v1/me/meters",
+            "/api/v1/me/payments",
+            "/api/v1/me/profile",
+            "/api/v1/me/readings",
+            "/api/v1/meters/{meterId:guid}",
+            "/api/v1/meters/{meterId:guid}/readings",
+            "/api/v1/meters/{meterId:guid}/replace",
+            "/api/v1/payments/{paymentId:guid}",
+            "/api/v1/readings/{readingId:guid}",
+            "/api/v1/reports/financial-summary",
+            "/api/v1/reports/operational-summary",
             "/api/v1/residents",
-            "/api/v1/residents/{residentId:guid}/password"
+            "/api/v1/residents/{residentId:guid}",
+            "/api/v1/residents/{residentId:guid}/password",
+            "/api/v1/tariffs",
+            "/api/v1/tariffs/{tariffId:guid}",
+            "/api/v1/tariffs/{tariffId:guid}/versions",
+            "/api/v1/tariffs/{tariffId:guid}/versions/{versionId:guid}",
+            "/api/v1/tariffs/{tariffId:guid}/versions/{versionId:guid}/end"
         };
         var actualPublicRoutes = host.RoutePatterns
             .Where(route =>
                 !route.StartsWith("/health", StringComparison.Ordinal) &&
                 !route.StartsWith("/internal/", StringComparison.Ordinal))
+            .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToArray();
 

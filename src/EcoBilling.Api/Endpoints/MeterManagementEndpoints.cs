@@ -2,6 +2,7 @@ using EcoBilling.Api.Configuration;
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Meters.Domain;
 using EcoBilling.Modules.Meters.Features.Create;
+using EcoBilling.Modules.Meters.Features.GetById;
 using EcoBilling.Modules.Meters.Features.ListByAccount;
 using EcoBilling.Modules.Meters.Features.Replace;
 
@@ -12,6 +13,12 @@ public static class MeterManagementEndpoints
     public static IEndpointRouteBuilder MapMeterManagementEndpoints(
         this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/meters/{meterId:guid}", GetByIdAsync)
+            .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
+            .WithTags("Meters")
+            .WithName("GetMeterById")
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         endpoints.MapPost("/api/v1/accounts/{accountId:guid}/meters", CreateAsync)
             .RequireAuthorization(UserAuthenticationOptions.DirectorPolicy)
             .WithTags("Meters")
@@ -28,6 +35,26 @@ public static class MeterManagementEndpoints
             .WithName("ListMetersByAccount");
 
         return endpoints;
+    }
+
+    private static async Task<IResult> GetByIdAsync(
+        Guid meterId,
+        HttpContext httpContext,
+        GetMeterByIdHandler handler,
+        CancellationToken cancellationToken)
+    {
+        if (meterId == Guid.Empty)
+        {
+            return ApiProblemDetails.Create(httpContext, MeterErrors.NotFound);
+        }
+
+        var result = await handler.Handle(
+            new GetMeterByIdQuery(new MeterId(meterId)),
+            cancellationToken);
+
+        return result.IsFailure
+            ? ApiProblemDetails.Create(httpContext, result.Error)
+            : Results.Ok(result.Value);
     }
 
     private static async Task<IResult> CreateAsync(

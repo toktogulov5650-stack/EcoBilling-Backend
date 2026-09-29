@@ -46,7 +46,7 @@ public sealed class CloseTariffVersionHandler
             TariffVersionCloseOutcome.InvalidEffectivePeriod =>
                 Result.Failure(TariffErrors.InvalidEffectivePeriod),
             TariffVersionCloseOutcome.AlreadyClosed =>
-                Result.Failure(TariffErrors.OverlappingPeriod),
+                Result.Failure(TariffErrors.VersionAlreadyClosed),
             _ => throw new InvalidOperationException(
                 $"Unknown tariff version close outcome: {outcome}.")
         };

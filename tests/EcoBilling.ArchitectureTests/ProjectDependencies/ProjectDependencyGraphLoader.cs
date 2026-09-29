@@ -18,7 +18,7 @@ internal static class ProjectDependencyGraphLoader
             .Where(element => element.Name.LocalName == "Project")
             .Select(element => element.Attribute("Path")?.Value)
             .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Select(path => Path.GetFullPath(Path.Combine(solutionDirectory, path!)))
+            .Select(path => ResolvePath(solutionDirectory, path!))
             .ToArray();
 
         var projectsByPath = projectPaths.ToDictionary(
@@ -31,14 +31,15 @@ internal static class ProjectDependencyGraphLoader
         {
             var project = XDocument.Load(projectPath);
             var projectDirectory = Path.GetDirectoryName(projectPath)
-                ?? throw new InvalidOperationException($"Project '{projectPath}' has no parent directory.");
+                ?? throw new InvalidOperationException(
+                    $"Project '{projectPath}' has no parent directory.");
 
             var referencedPaths = project
                 .Descendants()
                 .Where(element => element.Name.LocalName == "ProjectReference")
                 .Select(element => element.Attribute("Include")?.Value)
                 .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Select(path => Path.GetFullPath(Path.Combine(projectDirectory, path!)));
+                .Select(path => ResolvePath(projectDirectory, path!));
 
             foreach (var referencedPath in referencedPaths)
             {
@@ -53,5 +54,14 @@ internal static class ProjectDependencyGraphLoader
         }
 
         return graph;
+    }
+
+    private static string ResolvePath(string baseDirectory, string relativePath)
+    {
+        var normalizedPath = relativePath
+            .Replace('\\', Path.DirectorySeparatorChar)
+            .Replace('/', Path.DirectorySeparatorChar);
+
+        return Path.GetFullPath(Path.Combine(baseDirectory, normalizedPath));
     }
 }

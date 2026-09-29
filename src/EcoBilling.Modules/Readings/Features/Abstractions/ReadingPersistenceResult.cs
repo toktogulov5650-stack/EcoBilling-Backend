@@ -14,5 +14,6 @@ public enum ReadingPersistenceOutcome
     AccessDenied = 3,
     DecreasedValue = 4,
     BackdatedRequiresDirector = 5,
-    SupersededReadingNotFound = 6
+    BackdatedReasonRequired = 6,
+    SupersededReadingNotFound = 7
 }

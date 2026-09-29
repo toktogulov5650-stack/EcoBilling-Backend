@@ -24,6 +24,11 @@ public static class AccountTariffAssignmentErrors
         "The account already has a tariff assignment for the requested period.",
         ErrorType.Conflict);
 
+    public static Error AlreadyClosed { get; } = new(
+        "tariff.assignment.already_closed",
+        "The tariff assignment is already closed at an earlier date.",
+        ErrorType.Conflict);
+
     public static Error NotFound { get; } = new(
         "tariff.assignment.not_found",
         "No tariff assignment was found for the account and date.",

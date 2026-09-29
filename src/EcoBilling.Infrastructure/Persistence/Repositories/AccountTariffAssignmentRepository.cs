@@ -85,6 +85,88 @@ public sealed class AccountTariffAssignmentRepository(EcoBillingDbContext dbCont
         return AccountTariffAssignmentPersistenceOutcome.Assigned;
     }
 
+    public async Task<AccountTariffAssignmentCloseOutcome> CloseAsync(
+        AccountId accountId,
+        AccountTariffAssignmentId assignmentId,
+        DateOnly effectiveTo,
+        string actorId,
+        string correlationId,
+        DateTimeOffset changedAt,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(accountId);
+        ArgumentNullException.ThrowIfNull(assignmentId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(
+            cancellationToken);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock({AssignmentLockId})",
+            cancellationToken);
+
+        var assignment = await dbContext.AccountTariffAssignments
+            .SingleOrDefaultAsync(
+                existing =>
+                    existing.Id == assignmentId &&
+                    existing.AccountId == accountId,
+                cancellationToken);
+        if (assignment is null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return AccountTariffAssignmentCloseOutcome.NotFound;
+        }
+
+        if (assignment.EffectiveTo is not null &&
+            assignment.EffectiveTo.Value < effectiveTo)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return AccountTariffAssignmentCloseOutcome.AlreadyClosed;
+        }
+
+        var before = new
+        {
+            assignmentId = assignment.Id.Value,
+            accountId = assignment.AccountId.Value,
+            tariffId = assignment.TariffId.Value,
+            effectiveFrom = assignment.EffectiveFrom,
+            effectiveTo = assignment.EffectiveTo
+        };
+
+        var closeResult = assignment.Close(effectiveTo);
+        if (closeResult.IsFailure)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return AccountTariffAssignmentCloseOutcome.InvalidEffectivePeriod;
+        }
+
+        dbContext.AuditLogs.Add(
+            new AuditLog(
+                Guid.NewGuid(),
+                "User",
+                actorId,
+                "tariffs.account_assignment.closed",
+                "AccountTariffAssignment",
+                assignment.Id.Value.ToString("D"),
+                JsonSerializer.Serialize(before),
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        assignmentId = assignment.Id.Value,
+                        accountId = assignment.AccountId.Value,
+                        tariffId = assignment.TariffId.Value,
+                        effectiveFrom = assignment.EffectiveFrom,
+                        effectiveTo = assignment.EffectiveTo
+                    }),
+                correlationId,
+                changedAt));
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return AccountTariffAssignmentCloseOutcome.Closed;
+    }
+
     public Task<AccountTariffAssignment?> GetEffectiveAsync(
         AccountId accountId,
         DateOnly date,

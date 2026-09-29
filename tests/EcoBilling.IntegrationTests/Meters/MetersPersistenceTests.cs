@@ -41,9 +41,9 @@ public sealed class MetersPersistenceTests
         Assert.True(await reader.ReadAsync());
         Assert.Equal("meters", reader.GetString(0));
         Assert.Equal("meters.meters", reader.GetString(1));
-        Assert.Equal(2, reader.GetInt64(2));
-        Assert.Equal(2, reader.GetInt64(3));
-        Assert.Equal(5, reader.GetInt64(4));
+        Assert.Equal(3, reader.GetInt64(2));
+        Assert.Equal(3, reader.GetInt64(3));
+        Assert.Equal(6, reader.GetInt64(4));
     }
 
     [PostgreSqlFact]

@@ -23,6 +23,10 @@ public sealed class DistrictFinancialSummaryReader(EcoBillingDbContext dbContext
             .AsNoTracking()
             .SumAsync(allocation => (decimal?)allocation.Amount, cancellationToken) ?? 0m;
 
+        var totalOverpayment = await dbContext.Accounts
+            .AsNoTracking()
+            .SumAsync(account => (decimal?)account.Overpayment, cancellationToken) ?? 0m;
+
         var consumption = await dbContext.Charges
             .AsNoTracking()
             .SumAsync(charge => (decimal?)charge.Consumption, cancellationToken) ?? 0m;
@@ -59,7 +63,7 @@ public sealed class DistrictFinancialSummaryReader(EcoBillingDbContext dbContext
             totalCharges,
             totalPayments,
             Math.Max(0m, totalCharges - allocated),
-            Math.Max(0m, totalPayments - allocated),
+            totalOverpayment,
             consumption,
             "KGS",
             performance);

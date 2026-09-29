@@ -34,6 +34,9 @@ EcoBilling использует стандартную конфигурацию 
 | `ReverseProxy__KnownProxies__0` | Обязателен при включённом proxy | Точный IP доверенного proxy hop. Можно добавить следующие индексы для нескольких адресов. |
 | `ASPNETCORE_ENVIRONMENT` | Необязателен | В production не должен иметь значение `Development`; OpenAPI включён только в `Development`. |
 | `ASPNETCORE_HTTP_PORTS` | Необязателен | В Compose API слушает внутренний порт `8080`. |
+| `ReverseProxy__Enabled` | Необязателен | По умолчанию `false`. Включать только за реальным ingress/reverse proxy. |
+| `ReverseProxy__ForwardLimit` | Необязателен | Число доверенных proxy hops, по умолчанию `1`. |
+| `ReverseProxy__KnownProxies__0` | Обязателен при включённом reverse proxy | Точный IP доверенного proxy. Непарсируемые/пустые значения блокируют запуск. |
 
 API завершает запуск с ошибкой, если обязательная строка подключения, fingerprint key, service JWT issuer/audience/public key или user JWT issuer/audience/signing key отсутствуют.
 

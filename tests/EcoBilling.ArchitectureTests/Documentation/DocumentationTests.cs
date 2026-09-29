@@ -25,6 +25,7 @@ public sealed class DocumentationTests
             "testing/README.md",
             "deployment/README.md",
             "operations/README.md",
+            "operations/production-readiness.md",
             "security/README.md"
         };
 

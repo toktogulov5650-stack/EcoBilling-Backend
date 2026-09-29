@@ -1,40 +1,44 @@
 # EcoBilling
 
-EcoBilling — backend системы учёта и оплаты воды для одного округа. Каждый округ разворачивает отдельные экземпляры API, Worker и PostgreSQL.
+EcoBilling — backend системы учёта, начислений и оплаты воды для одного округа. Каждый округ разворачивает отдельные экземпляры API, Worker и PostgreSQL.
 
 Центральная маршрутизация по коду округа, системные администраторы и реестр округов относятся к отдельному проекту `ecobilling-control` и не входят в этот репозиторий.
 
 ## Текущий статус
 
-В репозитории реализован backend v1 модульного монолита:
+Основная функциональность backend v1 реализована и прошла автоматизированный verification pass: Release build, unit, architecture, PostgreSQL integration, E2E, Docker Compose validation и сборка container images.
 
-- Identity: Director / Controller / Resident, login, password setup, refresh rotation, replay protection, lockout и отзыв сессий;
-- Director provisioning через отдельный RS256 service JWT;
-- создание и directory-сценарии Controller и Resident;
-- Controller assignments на Address и Controller worklist;
-- Account / Address lookup;
-- Meter create/list/get/replace с сохранением истории;
-- MeterReading create/list/get, resource-based доступ Controller, backdated/correction правила;
-- Tariff, TariffVersion и назначения тарифа на Account с периодами действия;
-- месячный Billing v1;
+Реализованы:
+
+- Identity/Auth: login, access/refresh JWT, rotation/replay protection, lockout, password setup и rate limiting;
+- Director provisioning и self-profile;
+- создание Controller и Resident директором;
+- Controller assignments по Address и controller worklist;
+- Meter create/get/list/replace;
+- Reading create/history/corrections/backdated rules и assignment-based access;
+- Tariff, TariffVersion, назначение тарифа Account и закрытие периодов;
+- Billing v1 для календарного месяца `Asia/Bishkek`;
 - ручная регистрация подтверждённых Payments, PaymentAllocation и Account overpayment;
 - Resident self-service;
-- operational и financial reports;
-- append-only AuditLog, Outbox persistence/dispatcher;
-- Monthly Billing Worker и Outbox Worker с PostgreSQL distributed lock;
-- structured logging, OpenTelemetry, liveness/readiness;
-- Docker Compose, EF Core migrations и CI с настоящей PostgreSQL.
+- operational/financial reports;
+- append-only AuditLog;
+- Outbox persistence/dispatcher;
+- Monthly Billing и Outbox Worker с PostgreSQL distributed locking;
+- административный отзыв всех refresh-сессий пользователя;
+- безопасная поддержка reverse proxy через явный allowlist доверенных proxy.
 
-Публичной регистрации нет. Не реализуются фиктивно внешние возможности, для которых требуется отдельное решение: payment provider callbacks/refunds/reconciliation, внешний Outbox transport, льготы/пени/сложные перерасчёты и формула начисления периода, пересекающего замену нескольких Meter.
+Проект является **staging-ready backend candidate**, но production deployment остаётся **NO-GO**, пока не закрыты environment-specific блокеры: production secret store, раздельные PostgreSQL migration/runtime роли, TLS/ingress/network policy, backup/restore с RPO/RTO, telemetry backend/dashboards/alerts, финальное сканирование immutable images и реальные внешние интеграции.
 
-Production readiness зависит не только от backend-кода. Перед production необходимо закрыть environment-specific задачи: secret store, TLS/ingress, доверенные proxies, отдельные PostgreSQL credentials для migrations/runtime, backup/restore с RPO/RTO, telemetry backend/alerts и container vulnerability policy. Подробности находятся в [статусе проекта](docs/project-status.md) и [production readiness checklist](docs/operations/production-readiness.md).
+Внешний payment provider и внешний Outbox transport намеренно не симулируются.
+
+Подробный статус: [docs/project-status.md](docs/project-status.md). Production blockers: [docs/security/README.md](docs/security/README.md).
 
 ## Проекты и зависимости
 
-- `EcoBilling.Api` — HTTP composition root, middleware, аутентификация и endpoints.
-- `EcoBilling.Modules` — бизнес-модули, сценарии и контракты.
-- `EcoBilling.Infrastructure` — PostgreSQL, безопасность, аудит и технические адаптеры.
-- `EcoBilling.Worker` — composition root фонового выполнения без копирования бизнес-правил.
+- `EcoBilling.Api` — HTTP composition root, middleware, auth и endpoints.
+- `EcoBilling.Modules` — бизнес-модули, вертикальные сценарии и контракты.
+- `EcoBilling.Infrastructure` — PostgreSQL, EF Core, безопасность, audit, outbox и технические adapters.
+- `EcoBilling.Worker` — фоновые задания без копирования бизнес-правил.
 - `EcoBilling.SharedKernel` — небольшие общие технические типы.
 
 ```text
@@ -45,30 +49,29 @@ Worker ──┬─→ Infrastructure
          └─→ Modules
 ```
 
-Направления `ProjectReference` контролируются исполняемыми ArchitectureTests.
+Направления `ProjectReference` контролируются ArchitectureTests.
 
 ## Требования
 
 - .NET SDK `10.0.401`, закреплённый в `global.json`;
 - Docker Engine или Docker Desktop с Docker Compose v2;
-- PostgreSQL для полного integration/E2E прогона.
+- PostgreSQL 17 для полного integration/E2E прогона;
+- PowerShell для примеров команд ниже.
 
-## Быстрый запуск через Docker Compose
+## Быстрый локальный запуск
 
 ```powershell
 Copy-Item deploy/.env.example deploy/.env
 notepad deploy/.env
-
 docker compose --env-file deploy/.env --file deploy/compose.yml config --quiet
 docker compose --env-file deploy/.env --file deploy/compose.yml up --build --detach
 docker compose --env-file deploy/.env --file deploy/compose.yml ps
-
 Invoke-RestMethod http://localhost:8080/health/ready
 ```
 
-`deploy/.env.example` предназначен только для локального примера. Перед использованием вне изолированной машины замените все credentials и keys.
+`deploy/.env.example` предназначен только для локального/изолированного запуска. Production secrets должны приходить из внешнего secret store.
 
-Остановка без удаления PostgreSQL volume:
+Остановка сохраняет named volume PostgreSQL:
 
 ```powershell
 docker compose --env-file deploy/.env --file deploy/compose.yml down
@@ -82,39 +85,76 @@ dotnet build EcoBilling.slnx --configuration Release --no-restore
 dotnet test EcoBilling.slnx --configuration Release --no-build
 ```
 
-Без `ECOBILLING_TEST_POSTGRES_CONNECTION` PostgreSQL integration/E2E проверки явно пропускаются. Полный локальный прогон описан в [документации тестирования](docs/testing/README.md). GitHub Actions запускает тесты с настоящей временной PostgreSQL, проверяет Compose и собирает container images.
+Без `ECOBILLING_TEST_POSTGRES_CONNECTION` тесты, требующие PostgreSQL, пропускаются. Полный локальный PostgreSQL-прогон описан в [docs/testing/README.md](docs/testing/README.md).
+
+Последний зафиксированный полный verification pass до production-readiness hardening:
+
+- Architecture: 30/30;
+- Unit: 305/305;
+- PostgreSQL integration: 197/197;
+- E2E: 4/4;
+- Docker Compose validation: passed;
+- images `api`, `worker`, `migrations`: built successfully.
+
+После изменений в production-readiness ветке эти значения должны быть подтверждены повторным CI.
 
 ## Основная HTTP-поверхность
 
-- `/api/v1/auth/*` — login, refresh, revoke, password setup;
-- `/internal/v1/directors` — защищённый provisioning первого Director;
-- `/api/v1/directors/me/profile` — Director self profile;
-- `/api/v1/controllers/*` — directory, создание, assignments и worklist;
-- `/api/v1/residents/*` — directory, создание и password reset;
-- `/api/v1/me/*` — Resident self-service;
-- `/api/v1/accounts/*`, `/addresses/*` — management lookup;
-- `/api/v1/meters/*`, `/readings/*` — Meter и MeterReading;
-- `/api/v1/tariffs/*` — Tariffs, versions и account assignments;
-- `/api/v1/accounts/{accountId}/billing/{year}/{month}` — Billing v1;
-- `/api/v1/payments/*` и account financial endpoints — Payments;
-- `/api/v1/reports/*` — operational/financial summaries;
-- `POST /api/v1/users/{userId}/sessions/revoke-all` — Director-only отзыв всех refresh sessions пользователя;
-- `/health/live`, `/health/ready`, `/health` — health checks;
-- `/swagger` — только в `Development`.
+### Identity
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/revoke`
+- `POST /api/v1/auth/setup-password`
+- `POST /api/v1/users/{userId}/sessions/revoke-all` — Director-only administrative revoke.
 
-Точный контракт и ошибки описаны в [API документации](docs/api/README.md).
+### Director / management
+- Director profile;
+- Controller/Resident directories и создание;
+- Controller assignments;
+- Account/Address/Meter/Tariff/Billing/Payment/Report management endpoints.
+
+### Controller
+- self-profile;
+- assignments;
+- worklist;
+- внесение показаний только по назначенным ресурсам.
+
+### Resident
+- profile;
+- account/address;
+- meters/readings;
+- charges/payments;
+- financial summary.
+
+Точные маршруты и контракты: [docs/api/README.md](docs/api/README.md).
+
+## Worker и внешние интеграции
+
+Worker содержит реальные задачи monthly billing и outbox dispatch, но schedules по умолчанию выключены. Включать их следует только после проверки соответствующей среды и внешних зависимостей.
+
+Не подключены намеренно:
+
+- payment provider callback/signature/refund/reconciliation;
+- конкретный внешний Outbox publisher/transport;
+- billing v2+ (пени, льготы, нормативы, сложные перерасчёты);
+- формула для billing-периода, пересекающего замену Meter.
+
+## Production readiness
+
+Перед production обязательны:
+
+- внешний secret store и процедуры rotation/revocation;
+- разные PostgreSQL credentials для schema migrations и runtime;
+- TLS termination, trusted proxies и network restrictions;
+- backup/restore drill с утверждёнными RPO/RTO;
+- OTLP collector/backend, dashboards и alerts;
+- scanning финальных immutable images и supply-chain policy;
+- migration rehearsal на реалистичной копии данных;
+- rollback/forward-fix runbook;
+- безопасный процесс передачи initial credentials сотрудникам.
+
+См. [deployment](docs/deployment/README.md), [configuration](docs/configuration/README.md), [operations](docs/operations/README.md) и [security readiness](docs/security/README.md).
 
 ## Документация
 
-Начальная точка — [docs/README.md](docs/README.md).
-
-- [Статус проекта](docs/project-status.md)
-- [Архитектура и ADR](docs/architecture/README.md)
-- [Business rules v1](docs/business-rules/README.md)
-- [API](docs/api/README.md)
-- [Тестирование](docs/testing/README.md)
-- [Конфигурация](docs/configuration/README.md)
-- [Развёртывание](docs/deployment/README.md)
-- [Операции](docs/operations/README.md)
-- [Production readiness](docs/operations/production-readiness.md)
-- [Security readiness](docs/security/README.md)
+Начальная точка: [docs/README.md](docs/README.md).

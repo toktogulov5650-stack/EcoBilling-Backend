@@ -31,6 +31,11 @@ public sealed class GetChargeByIdHandler(IChargeRepository chargeRepository)
                 charge.PeriodStart,
                 charge.PeriodEnd,
                 charge.Amount,
-                charge.CreatedAt));
+                charge.CreatedAt,
+                charge.PreviousReadingId?.Value,
+                charge.CurrentReadingId?.Value,
+                charge.Consumption,
+                charge.CalculationVersion,
+                charge.Currency));
     }
 }

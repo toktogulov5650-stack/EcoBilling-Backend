@@ -5,4 +5,8 @@ public sealed record MeterReadingDetails(
     Guid MeterId,
     decimal Value,
     DateTimeOffset MeasuredAt,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    Guid? AuthorUserId = null,
+    string Source = "Import",
+    Guid? SupersedesReadingId = null,
+    string? CorrectionReason = null);

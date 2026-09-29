@@ -22,4 +22,22 @@ public interface ITariffVersionRepository
         string actorId,
         string correlationId,
         CancellationToken cancellationToken);
+
+    Task<TariffVersionCloseOutcome> CloseAsync(
+        TariffId tariffId,
+        TariffVersionId tariffVersionId,
+        DateOnly effectiveTo,
+        string actorId,
+        string correlationId,
+        DateTimeOffset changedAt,
+        CancellationToken cancellationToken);
+}
+
+
+public enum TariffVersionCloseOutcome
+{
+    Closed = 0,
+    NotFound = 1,
+    InvalidEffectivePeriod = 2,
+    AlreadyClosed = 3
 }

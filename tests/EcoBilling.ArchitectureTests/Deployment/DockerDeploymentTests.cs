@@ -29,7 +29,8 @@ public sealed class DockerDeploymentTests
     {
         var compose = ReadDeploymentFile("compose.yml");
 
-        Assert.Contains("image: postgres:17-alpine", compose, StringComparison.Ordinal);
+        Assert.Contains("image: ecobilling-postgres:latest", compose, StringComparison.Ordinal);
+        Assert.Contains("dockerfile: deploy/Dockerfile.postgres", compose, StringComparison.Ordinal);
         Assert.Contains("ConnectionStrings__EcoBilling", compose, StringComparison.Ordinal);
         Assert.DoesNotContain("ConnectionStrings__Database", compose, StringComparison.Ordinal);
         Assert.Contains("${POSTGRES_PASSWORD:?", compose, StringComparison.Ordinal);
@@ -68,6 +69,30 @@ public sealed class DockerDeploymentTests
         Assert.Contains("BEGIN PUBLIC KEY", environmentTemplate, StringComparison.Ordinal);
         Assert.DoesNotContain("BEGIN PRIVATE KEY", environmentTemplate, StringComparison.Ordinal);
         Assert.DoesNotContain("BEGIN RSA PRIVATE KEY", environmentTemplate, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProductionPostgresRoleScripts_SeparateMigratorAndRuntime()
+    {
+        var bootstrap = File.ReadAllText(
+            Path.Combine(
+                RepositoryPaths.RepositoryRoot,
+                "deploy",
+                "postgres",
+                "bootstrap-production-roles.sql"));
+        var grants = File.ReadAllText(
+            Path.Combine(
+                RepositoryPaths.RepositoryRoot,
+                "deploy",
+                "postgres",
+                "grant-runtime.sql"));
+
+        Assert.Contains("ecobilling_migrator", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("ecobilling_runtime", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOSUPERUSER", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOCREATEDB", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("REVOKE UPDATE, DELETE", grants, StringComparison.Ordinal);
+        Assert.Contains("infrastructure.audit_logs", grants, StringComparison.Ordinal);
     }
 
     [Fact]

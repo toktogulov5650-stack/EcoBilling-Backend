@@ -1,13 +1,13 @@
 # Статус реализации EcoBilling
 
-Состояние ветки `feature/complete-v1-backend` после завершения основной функциональной реализации и автоматизированного verification pass для v1. Последний CI полностью зелёный: restore, Release build, architecture tests, unit tests, PostgreSQL integration tests, E2E, Docker Compose validation и сборка container images прошли успешно.
+Состояние backend v1 после merge в `master` и production-readiness hardening. Базовый v1 verification pass был полностью зелёным: restore, Release build, architecture tests, unit tests, PostgreSQL integration tests, E2E, Docker Compose validation и container build.
 
 ## Реализованный функционал
 
 | Область | Реализованный объём |
 |---|---|
 | Архитектура | Модульный монолит, отдельные composition roots API и Worker, PostgreSQL/EF Core/Npgsql, SharedKernel. |
-| Identity | Email/account-number login, HS256 access JWT, refresh rotation/replay protection, lockout, initial password setup, role policies и rate limiting authentication endpoints. |
+| Identity | Email/account-number login, HS256 access JWT, refresh rotation/replay protection, lockout, initial password setup, role policies, auth rate limiting и Director-only revoke всех refresh sessions пользователя. |
 | Director | Provisioning через внутренний RS256 service JWT и self-profile endpoint. |
 | Controllers | Создание Director-ом, directory endpoints, профиль, назначения на Address, удаление назначения, список назначений, self assignments и worklist. |
 | Residents | Создание и password reset Director-ом, directory endpoints, self-service profile/account/meters/readings/charges/payments/financial summary. |
@@ -23,7 +23,7 @@
 | Audit | Mutation-сценарии записывают AuditLog атомарно с бизнес-изменением; AuditLog остаётся append-only. |
 | Outbox | Billing/Payment создают OutboxMessage атомарно; dispatcher поддерживает retry state и distributed coordination. Внешний publisher не подменяется фиктивной доставкой и должен быть подключён после выбора transport/provider. |
 | Worker | Monthly billing batch, Outbox task, retry runner, конфигурируемые schedules и PostgreSQL distributed lock между экземплярами Worker. |
-| API | RFC 7807 Problem Details, correlation IDs, Swagger/OpenAPI только Development, role policies и resource checks. |
+| API | RFC 7807 Problem Details, correlation IDs, Swagger/OpenAPI только Development, role/resource policies и forwarded headers только от явно доверенных proxy IP. |
 
 ## Основная HTTP-поверхность
 
@@ -42,6 +42,7 @@
 - `GET|POST /api/v1/residents`
 - `GET /api/v1/residents/{residentId}`
 - `PUT /api/v1/residents/{residentId}/password`
+- `POST /api/v1/users/{userId}/sessions/revoke-all`
 - Account/Address/Meter/Tariff/Billing/Payment/Report management endpoints.
 
 ### Controller
@@ -67,7 +68,7 @@
 - конкретный внешний Outbox transport/publisher;
 - сложная billing formula v2+ (льготы, нормативы, пени и перерасчёты);
 - неоднозначное начисление месяца, пересекающего замену Meter;
-- production secret store и PostgreSQL role model;
+- production secret store и фактическое применение PostgreSQL migrator/runtime role model в целевом окружении;
 - TLS/ingress/network policy конкретной площадки;
 - backup/restore, RPO/RTO/SLA;
 - telemetry backend, dashboards и alert thresholds;
@@ -82,14 +83,15 @@
 1. `dotnet restore` — успешно;
 2. Release build — успешно;
 3. EF Core migrations и ModelSnapshot синхронизированы;
-4. Architecture tests — 30/30;
-5. Unit tests — 305/305;
-6. PostgreSQL integration tests — 197/197;
+4. Architecture tests — 34/34;
+5. Unit tests — 307/307;
+6. PostgreSQL integration tests — 206/206;
 7. E2E journeys — 4/4;
 8. Docker Compose validation — успешно;
-9. container images `api`, `worker`, `migrations` — успешно;
-10. GitHub Actions CI — зелёный.
+9. container images `api`, `worker`, `migrations`, `postgres` — успешно;
+10. Trivy CRITICAL/HIGH scan — 0 findings для всех четырёх финальных images;
+11. GitHub Actions CI — зелёный.
 
-Итого автоматизированных тестов: 536/536.
+Итого автоматизированных тестов: 551/551.
 
-Ветка является проверенным v1 backend candidate. До фактического production deployment отдельно должны быть утверждены и настроены внешние operational-зависимости из раздела «Что намеренно не симулируется»: secrets, ingress/TLS, backup/restore, observability backend, внешний Outbox transport и payment provider integration, если они требуются для выбранной площадки.
+Repository-side backend v1 и production-hardening завершены и подтверждены зелёным CI. Backend является проверенным staging candidate. Production GO требует environment-specific evidence из [production readiness checklist](operations/production-readiness.md): secrets, TLS/ingress/trusted proxies, PostgreSQL role split, backup/restore, observability, сохранение release SBOM/immutable digest policy и migration rehearsal на реалистичной копии данных. Внешний Outbox transport и payment provider требуются только если соответствующие сценарии включаются.

@@ -1,53 +1,45 @@
 # Реестр открытых архитектурных решений
 
-В этом файле перечислены решения, которые нельзя подменять значениями по умолчанию или неявными предположениями.
+Файл содержит только решения, которые действительно остаются открытыми после реализации v1. Реализованное v1-поведение фиксируется в [ADR-0025](ADR-0025-versioned-product-policy.md) и [политике v1](../business-rules/v1-policy-baseline.md).
 
-Все строки ниже имеют статус «открыто». Владелец решения и целевая дата пока не назначены; это должно быть сделано владельцем продукта или эксплуатации до начала зависимого сценария. Для эксплуатационных решений, необходимых конкретному production-окружению, отсутствие владельца и даты блокирует release readiness. Закрытие строки требует ссылки на утверждённое business rule или ADR и даты решения.
+## Открытые решения
 
-| Тема | Требуется определить | Этап до которого нужно решение |
+| Тема | Что ещё требуется определить | До какого этапа |
 |---|---|---|
-| Имя жителя | Составные поля, максимальная длина, допустимые символы и локализация | До окончательного ограничения профиля |
-| Имя сотрудника | Составные поля, максимальная длина, допустимые символы и локализация | До окончательного ограничения профилей сотрудников |
-| Лицевой счёт | Допустимый формат, длина и допустимые символы | До окончательного ограничения БД |
-| Финансовое состояние счёта | Источник истины для баланса, долга и переплаты; допустимые операции и аудит | До Billing/Payments |
-| Поиск адресов | Подстрочный или полнотекстовый поиск, ранжирование, язык и допустимость неточного совпадения | До поиска и назначений Controller |
-| Назначения контроллера | Адреса или маршруты, сроки действия, заметки и offline-режим | Controllers/Addresses |
-| Жизненный цикл счётчика | Типы, разрядность, пломбирование, статус, деактивация, замена, область уникальности серийного номера и фотографии | До сценариев управления Meters |
-| Правила показаний | Точность и scale, максимальный диапазон, уменьшение, задняя дата, источник, автор, исправление и фотографии | До сценариев внесения и исправления Readings |
-| Применение тарифа | Валюта, единица ставки, точность, назначение Account или категории, авторство, деактивация и административный сценарий | До управления Tariffs и Billing |
-| Формула начисления v2+ | Нормативы, минимумы, льготы, пени и сложные перерасчёты поверх базового правила v1 | До реализации соответствующего расширения Billing |
-| Платёжный провайдер | Провайдер, callback signature, статусы, отмена, возвраты и сверка | До подключения внешней оплаты |
-| Отчёты | Семантика задолженности и финансовых итогов, показатели работы контроллеров, фильтры, экспорт, snapshot-time и срок хранения | До соответствующих Reports и фонового экспорта |
-| Фоновые задания | Расписания и триггеры, конкурентность, классификация повторяемых ошибок, распределённая координация и политика безопасного повторного запуска | До регистрации первого реального задания Worker |
-| Хранение данных | Сроки аудита, показаний, квитанций и персональных данных | Финальная схема БД |
-| Эксплуатация | Backup, restore, RPO, RTO и SLA | Production readiness |
-| Наблюдаемость | Telemetry backend, OTLP collector, sampling, сроки хранения, dashboards и alert thresholds | До production deployment |
-| Безопасность развёртывания | TLS termination, доверенные proxy и forwarded headers, network policies и внешний host allowlist | Production readiness |
-| Доступ PostgreSQL | Раздельные migration/runtime роли, минимальные grants, ротация и аварийный доступ | Production readiness |
-| Контейнерный supply chain | CVE threshold, immutable digest, SBOM/VEX, срок обновления и порядок risk acceptance | Production readiness |
+| Имя Resident/сотрудника | Составные поля, окончательная максимальная длина, допустимые символы и локализация | До ужесточения публичного профиля/схемы |
+| Формат Account number | Окончательный регламент длины и символов между всеми округами | До межокружного унифицированного импорта |
+| Поиск Address | Полнотекстовый/fuzzy поиск, ranking и язык | До отдельного search endpoint |
+| Расширенный Meter | Тип, разрядность, пломба, фото и дополнительные статусы | До Meter v2 |
+| Billing при замене Meter внутри периода | Формула объединения показаний нескольких Meter и контрольные примеры | До снятия текущего явного запрета |
+| Расширенные Reading rules | Максимальный диапазон, фото/доказательства, device/import trust model | До Readings v2 |
+| Tariff semantics v2 | Единица ставки и дополнительные категории/льготы | До Tariff/Billing v2 |
+| Формула Billing v2+ | Нормативы, минимумы, льготы, пени и перерасчёты | До соответствующей реализации |
+| Payment provider | Provider, callback signature, статусы, refunds/reconciliation | До внешней онлайн-оплаты |
+| Outbox transport | Broker/transport, delivery semantics, DLQ и publisher | До включения Outbox Worker в production |
+| Reports v2 | Фильтры, экспорт, snapshot-time, retention и тяжёлые отчёты | До report exports |
+| Initial credential delivery | Безопасный канал передачи initial credential сотрудникам | До внешнего production onboarding |
+| Data retention | Audit, readings, payments и персональные данные | Production policy |
+| Backup / restore | RPO, RTO, retention, frequency и restore drill | Production readiness |
+| Observability | Collector/backend, sampling, dashboards, alerts и retention | Production deployment |
+| Deployment security | TLS termination, trusted proxy IP, network policy/firewall | Production deployment |
+| Secret management | Provider, RBAC, rotation/revoke, break-glass | Production deployment |
+| PostgreSQL production roles | Применение migrator/runtime roles, grants и rotation в целевом окружении | Production deployment |
+| Container supply chain | Final image scanning, immutable digest, SBOM/VEX, CVE threshold | Production release |
+| Rollout strategy | Replica count, maintenance window, rollback vs forward-fix | Production release |
 
-## Принятые решения
+## Принятые решения v1
 
-- Код округа принадлежит экземпляру и не хранится у локальных пользователей — ADR-0002.
-- HTTP-ошибки используют RFC 7807 с устойчивыми расширениями — ADR-0003.
-- Identity поддерживает только Resident, Controller и Director; способы входа и защита от определения существования аккаунта зафиксированы в ADR-0004.
-- Persistence Identity использует PostgreSQL/EF Core/Npgsql, а пароли — стандартный Microsoft PasswordHasher через адаптер Infrastructure — ADR-0005.
-- Профиль Resident связан один-к-одному с Identity; адрес, лицевой счёт и полное создание отложены до зависимых модулей — ADR-0006.
-- Профиль Controller связан один-к-одному с Identity; назначения и создание директором отложены до зависимых сценариев — ADR-0007.
-- Лицевой счёт использует канонический уникальный номер, обязательную связь с Resident и пока не хранит неподтверждённое финансовое состояние — ADR-0008.
-- Address является обслуживаемым объектом Account; структура, базовая нормализация и обязательный `AddressId` зафиксированы в ADR-0009.
-- Meter имеет минимальную обязательную связь с Account, канонический серийный номер и UTC-время установки; жизненный цикл остаётся открытым — ADR-0010.
-- MeterReading имеет минимальную обязательную связь с Meter, неотрицательное значение и UTC-время; правила внесения, истории и исправления остаются открытыми — ADR-0011.
-- Tariff имеет стабильную идентичность, а его неизменяемые версии используют непересекающиеся полуоткрытые периоды календарных дат — ADR-0012.
-- Charge хранит Account, точную TariffVersion, явные границы периода и сумму; формула и финансовый workflow остаются открытыми — ADR-0013.
-- Payment представляет подтверждённый положительный факт оплаты с глобально уникальным непрозрачным IdempotencyKey; провайдерский workflow остаётся открытым — ADR-0014.
-- Reports является read-only проекцией без собственной схемы; первая сводка содержит только количества подтверждённых сущностей — ADR-0015.
-- Worker является composition root фоновых адаптеров; общий runner поддерживает отмену, ограниченные повторы, структурированные логи и метрики, но не содержит бизнес-правил — ADR-0016.
-- EcoBilling.Control вызывает provisioning директора через отдельный RS256 JWT-контракт с `kid`, коротким сроком жизни, scope, PostgreSQL-защитой `jti` от повторов и обязательным `Idempotency-Key` — ADR-0017.
-- AuditLog является append-only технической записью, provisioning директора аудируется атомарно без секретов и PII, а Outbox пока предоставляет только persistence-основу без фиктивного publisher — ADR-0018.
-- API и Worker используют JSON-логи и OpenTelemetry; API разделяет liveness/readiness, PostgreSQL участвует в readiness и traces, а OTLP включается конфигурацией — ADR-0019.
-- Контейнеры API и Worker запускаются non-root, PostgreSQL изолирована внутренней сетью, а отдельный одноразовый service применяет миграции до запуска приложений — ADR-0020.
-- Pull request, `main` и release проходят единый gate с restore, Release build/test, полной PostgreSQL-интеграцией и проверкой контейнерной сборки — ADR-0021.
-- E2E используют реальный HTTP pipeline и PostgreSQL только для существующих контрактов; не реализованные пользовательские пути отражаются в матрице покрытия без фиктивных endpoints — ADR-0022.
-- Финальная security/readiness проверка закрепляет audit зависимостей, SHA-pinning CI, host allowlist, безопасное логирование Worker и production NO-GO до закрытия эксплуатационных блокеров — ADR-0024.
-- Начальная политика Identity, месячного Billing, ручных Payments и Worker принята как изменяемая версия v1; изменения версионируются и не переписывают финансовую историю — ADR-0025.
+- Identity роли, login types, lockout, access/refresh lifecycle и отсутствие публичной регистрации — ADR-0004 и ADR-0025.
+- Resident создаётся атомарно вместе с Identity, Address и единственным Account v1.
+- Account является источником сохранённой переплаты; debt вычисляется из Charges и PaymentAllocations.
+- Controller назначается на Address. Controller получает только свой assignment list/worklist и может вносить Reading только для назначенного ресурса.
+- Meter replacement сохраняет историю: старый Meter retired, новый связан через replacement relationship; silent overwrite запрещён.
+- MeterReading хранит автора, source и measured time. Обычное значение не уменьшается; backdated/correction требуют полномочий и не переписывают историю.
+- Tariff имеет immutable versions с полуоткрытыми непересекающимися периодами; Tariff назначается Account отдельной исторической записью.
+- Billing v1 использует календарный месяц `Asia/Bishkek`, accepted readings, effective TariffVersion, KGS и `AwayFromZero` округление до 2 знаков.
+- Payment v1 — ручная регистрация подтверждённого платежа Director с обязательной идемпотентностью; allocation идёт по старейшим Charges, остаток становится Account overpayment.
+- Worker содержит Monthly Billing и Outbox jobs, bounded retry и PostgreSQL distributed coordination. Production schedules включаются явно.
+- Reports v1 предоставляют operational/financial read models.
+- AuditLog append-only на уровне приложения; production runtime grant дополнительно запрещает UPDATE/DELETE audit table.
+- Forwarded headers не доверяются по умолчанию и могут приниматься только от явно настроенного proxy IP.
+- Для production PostgreSQL предусмотрены отдельные migrator/runtime роли; SQL scripts находятся в `deploy/postgres`, но их фактическое применение является deployment evidence, а не свойством репозитория.

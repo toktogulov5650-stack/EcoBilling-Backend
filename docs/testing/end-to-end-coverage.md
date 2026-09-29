@@ -1,33 +1,58 @@
 # Матрица End-to-End покрытия
 
-E2E-тесты выполняют пользовательский или межсервисный путь через HTTP и настоящую PostgreSQL. Они не создают HTTP-контракты для функций, которых пока нет в production API.
+E2E-тесты EcoBilling выполняют реальные HTTP journeys через ASP.NET Core pipeline и отдельную временную PostgreSQL.
 
-| Сценарий из задания | Состояние | Проверка или причина ожидания |
+Важно: наличие production endpoint не означает наличие отдельного E2E journey. Unit/integration/contract coverage и E2E coverage ниже различаются явно.
+
+## Текущие E2E journeys
+
+В проекте сейчас четыре journey-файла:
+
+- `DirectorProvisioningJourneyTests`;
+- `ControllerCreationJourneyTests`;
+- `ResidentCreationJourneyTests`;
+- `PublicHttpBoundaryJourneyTests`.
+
+| Сценарий | Реализация API | Текущее покрытие |
 |---|---|---|
-| Вход жителя | Покрыто | E2E создаёт Resident директором и проверяет вход по нормализованному номеру лицевого счёта. |
-| Вход контроллера | Покрыто | E2E создаёт Controller, проверяет запрет login до password setup, замену тайны и успешный login. |
-| Вход директора | Покрыто | E2E provisioning завершается password setup и успешным login Director. |
-| Отказ при неверном пароле | Покрыто integration | HTTP/PostgreSQL тесты проверяют единый `401 auth.invalid_credentials` и persisted lockout. |
-| Запрет публичной регистрации | Покрыто | Endpoint inventory не содержит registration routes; HTTP-запрос регистрации получает RFC 7807 `404` с `request.not_found`. |
-| Создание жителя директором | Покрыто | Полный HTTP/PostgreSQL journey проверяет Director JWT, атомарное создание Identity/Profile/Address/Account, audit, replay и вход Resident. |
-| Сброс пароля жителя директором | Покрыто | E2E проверяет идемпотентный reset, отзыв старого refresh token, запрет старого пароля, вход с новым паролем и Audit без credentials. |
-| Создание контроллера директором | Покрыто | Полный HTTP/PostgreSQL journey проверяет Director JWT, атомарное создание, audit, replay и первичную смену пароля Controller. |
-| Житель не видит чужие данные | Ожидает auth/API | Нет пользовательских claims и HTTP endpoint просмотра счёта. |
-| Контроллер не видит неназначенного жителя | Ожидает назначения | Модель назначений и соответствующий HTTP API не утверждены. |
-| Внесение показания контроллером | Ожидает правила/API | Нет mutation-сценария; правила показаний остаются открытыми. |
-| Просмотр истории показаний | Ожидает API | Есть persistence-основа, но нет пользовательского query endpoint. |
-| Просмотр начислений | Ожидает правила/API | Нет утверждённой формулы и пользовательского query endpoint. |
-| Просмотр платежей | Ожидает API | Есть минимальный подтверждённый Payment, но нет пользовательского query endpoint. |
-| Внутреннее создание директора | Покрыто | Проверяются отдельная service authentication, полный HTTP/persistence путь, audit и отсутствие утечки initial credential. |
-| Идемпотентный повтор внутренней операции | Покрыто | Новый JWT с тем же `Idempotency-Key` возвращает исходные идентификаторы и не создаёт дубликаты. |
+| Provisioning первого Director | Реализовано | E2E |
+| Login Director | Реализовано | E2E внутри Director journey |
+| Создание Controller Director-ом | Реализовано | E2E |
+| Password setup и login Controller | Реализовано | E2E |
+| Создание Resident + Address + Account | Реализовано | E2E |
+| Login Resident по Account number | Реализовано | E2E |
+| Сброс пароля Resident | Реализовано | E2E внутри Resident journey |
+| Запрет публичной регистрации | Реализовано как отсутствие маршрута | E2E public boundary |
+| Полный inventory публичных routes | Реализовано | E2E public boundary |
+| Controller assignments | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Controller worklist | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Controller не видит неназначенный ресурс | Реализовано resource-based authorization | Integration; отдельный E2E journey ещё нужен |
+| Внесение Reading Controller-ом | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Reading correction/backdated rules | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Meter create/replace | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Tariff + TariffVersion + Account assignment | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Monthly Billing v1 | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Manual Payment + allocation + overpayment | Реализовано | Unit/integration; отдельный E2E journey ещё нужен |
+| Resident self-service: meters/readings/charges/payments | Реализовано | Integration/API tests; отдельный E2E journey ещё нужен |
+| Administrative revoke-all refresh sessions | Реализовано | Unit/integration; отдельный HTTP E2E journey ещё нужен |
+| Payment provider callback/refund/reconciliation | Не реализовано | Ожидает выбор провайдера |
+| Внешний Outbox transport | Не реализовано | Ожидает выбор transport/provider |
+| Billing периода с заменой Meter | Явно блокируется | Ожидает утверждённое бизнес-правило |
+
+## Рекомендуемые следующие E2E journeys
+
+Перед production полезно добавить четыре сквозных сценария:
+
+1. `ControllerAssignmentAndReadingJourney`: Director назначает Address → Controller видит worklist → вносит Reading → неназначенный Controller получает запрет.
+2. `TariffAndBillingJourney`: Director создаёт Tariff/Version/assignment → показания → monthly charge → повтор расчёта не создаёт дубль.
+3. `PaymentAndOverpaymentJourney`: Charge → частичная/полная оплата → allocation → overpayment → следующий Charge использует переплату.
+4. `ResidentSelfServiceJourney`: после Billing/Payment Resident видит только собственные meters/readings/charges/payments/financial summary.
 
 ## Запуск
-
-Укажите административную строку подключения к PostgreSQL, пользователь которой может создавать и удалять временные базы:
 
 ```powershell
 $env:ECOBILLING_TEST_POSTGRES_CONNECTION = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=<local-test-password>"
 dotnet test tests/EcoBilling.EndToEndTests/EcoBilling.EndToEndTests.csproj --configuration Release
 ```
 
-GitHub Actions задаёт эту переменную автоматически для одноразового PostgreSQL service. Production credentials для E2E не используются.
+GitHub Actions использует одноразовый PostgreSQL service. Production credentials для E2E не используются.

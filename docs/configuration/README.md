@@ -29,8 +29,14 @@ EcoBilling использует стандартную конфигурацию 
 | `UserAuthentication__MaximumPasswordLength` | Необязателен | По умолчанию `256`. |
 | `Observability__OtlpEndpoint` | Необязателен | Абсолютный HTTP(S) URI OTLP collector. Пустое значение отключает экспорт. |
 | `AllowedHosts` | Обязателен для окружения | Разделённый `;` allowlist host names, которые обслуживает API. Wildcard `*` запрещён для deployment. |
+| `ReverseProxy__Enabled` | Необязателен | По умолчанию `false`. Включать только когда API реально стоит за trusted reverse proxy/ingress. |
+| `ReverseProxy__ForwardLimit` | Обязателен при включённом proxy | Число доверенных proxy hops, минимум `1`; по умолчанию `1`. |
+| `ReverseProxy__KnownProxies__0` | Обязателен при включённом proxy | Точный IP доверенного proxy hop. Можно добавить следующие индексы для нескольких адресов. |
 | `ASPNETCORE_ENVIRONMENT` | Необязателен | В production не должен иметь значение `Development`; OpenAPI включён только в `Development`. |
 | `ASPNETCORE_HTTP_PORTS` | Необязателен | В Compose API слушает внутренний порт `8080`. |
+| `ReverseProxy__Enabled` | Необязателен | По умолчанию `false`. Включать только за реальным ingress/reverse proxy. |
+| `ReverseProxy__ForwardLimit` | Необязателен | Число доверенных proxy hops, по умолчанию `1`. |
+| `ReverseProxy__KnownProxies__0` | Обязателен при включённом reverse proxy | Точный IP доверенного proxy. Непарсируемые/пустые значения блокируют запуск. |
 
 API завершает запуск с ошибкой, если обязательная строка подключения, fingerprint key, service JWT issuer/audience/public key или user JWT issuer/audience/signing key отсутствуют.
 
@@ -41,10 +47,15 @@ API завершает запуск с ошибкой, если обязател
 | `ConnectionStrings__EcoBilling` | Обязателен, секрет | Строка подключения runtime к PostgreSQL. |
 | `Worker__Execution__MaxAttempts` | Необязателен | Общее число попыток задания, минимум `1`; по умолчанию `3`. |
 | `Worker__Execution__RetryDelay` | Необязателен | Неотрицательная задержка `TimeSpan`; по умолчанию `00:00:05`. |
+| `Worker__Schedules__MonthlyBillingEnabled` | Необязателен | По умолчанию `false`; включает idempotent monthly billing batch. |
+| `Worker__Schedules__MonthlyBillingInterval` | Необязателен | Интервал запуска проверки billing batch; по умолчанию `1.00:00:00`. |
+| `Worker__Schedules__OutboxEnabled` | Необязателен | По умолчанию `false`; включать только после регистрации реального publisher. |
+| `Worker__Schedules__OutboxInterval` | Необязателен | Интервал Outbox batch; по умолчанию `00:01:00`. |
+| `Worker__Schedules__OutboxBatchSize` | Необязателен | Размер batch `1..1000`, по умолчанию `100`. |
 | `Observability__OtlpEndpoint` | Необязателен | Тот же OTLP collector, что и для API. |
 | `DOTNET_ENVIRONMENT` | Необязателен | В production не должен иметь значение `Development`. |
 
-Worker не применяет миграции и пока не регистрирует реальные задания.
+Worker не применяет миграции. В нём зарегистрированы Monthly Billing и Outbox jobs; оба schedule по умолчанию выключены. Monthly Billing можно включать после проверки billing policy на staging, Outbox — только после подключения реального `IOutboxMessagePublisher`.
 
 ## Design-time и тесты
 
@@ -61,11 +72,13 @@ Production credentials нельзя использовать для локаль
 
 `deploy/compose.yml` читает:
 
-- обязательные `POSTGRES_PASSWORD`, `DIRECTOR_PROVISIONING_FINGERPRINT_KEY`, `INTERNAL_SERVICE_PUBLIC_KEY_PEM`, `USER_AUTH_SIGNING_KEY` и `ALLOWED_HOSTS`;
+- обязательные для локального Compose `POSTGRES_PASSWORD`, `DIRECTOR_PROVISIONING_FINGERPRINT_KEY`, `INTERNAL_SERVICE_PUBLIC_KEY_PEM`, `USER_AUTH_SIGNING_KEY` и `ALLOWED_HOSTS`;
 - локальные идентификаторы `INTERNAL_SERVICE_ISSUER`, `INTERNAL_SERVICE_AUDIENCE`, `INTERNAL_SERVICE_KEY_ID`, `USER_AUTH_ISSUER`, `USER_AUTH_AUDIENCE` и `USER_AUTH_KEY_ID`;
 - `ECOBILLING_API_PORT` для host-порта API, по умолчанию `8080`;
 - `ASPNETCORE_ENVIRONMENT` и `DOTNET_ENVIRONMENT`, по умолчанию `Production`;
-- необязательный `OTLP_ENDPOINT`.
+- необязательный `OTLP_ENDPOINT`;
+- `REVERSE_PROXY_ENABLED`, `REVERSE_PROXY_FORWARD_LIMIT`, `TRUSTED_PROXY_IP` для trusted forwarded headers;
+- `WORKER_MONTHLY_BILLING_ENABLED`, `WORKER_MONTHLY_BILLING_INTERVAL`, `WORKER_OUTBOX_ENABLED`, `WORKER_OUTBOX_INTERVAL`, `WORKER_OUTBOX_BATCH_SIZE`.
 
 `ALLOWED_HOSTS` должен содержать внешние host names конкретного окружения и внутреннее имя `api`, если health check вызывается внутри Compose. Не используйте `*`; TLS proxy также должен проверять и передавать ожидаемый Host.
 
@@ -88,3 +101,20 @@ Production credentials нельзя использовать для локаль
 Механизм production secret store выбирается при развёртывании и в репозитории не фиксируется случайным значением.
 
 При ротации пользовательского JWT-ключа сначала добавьте новый элемент `SigningKeys`, затем переключите `ActiveSigningKeyId`. Старый ключ удаляется только после максимального срока ранее выпущенного access token с учётом clock skew. Ротация signing key не заменяет отзыв refresh token family.
+
+
+## Production PostgreSQL credentials
+
+Локальный Compose использует один credential для простоты. Production не должен повторять эту модель.
+
+В `deploy/postgres` находятся:
+
+- `bootstrap-production-roles.sql` — создаёт/обновляет `ecobilling_migrator` и `ecobilling_runtime`;
+- `grant-runtime.sql` — выдаёт runtime data grants после миграций и запрещает UPDATE/DELETE для AuditLog.
+
+Production deployment передаёт:
+
+- migration connection только migration job;
+- runtime connection только API/Worker.
+
+См. [production readiness checklist](../operations/production-readiness.md).

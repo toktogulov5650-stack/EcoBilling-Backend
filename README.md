@@ -1,23 +1,44 @@
 # EcoBilling
 
-EcoBilling — backend системы учёта и оплаты воды для одного округа. Каждый округ разворачивает отдельные экземпляры API, Worker и PostgreSQL.
+EcoBilling — backend системы учёта, начислений и оплаты воды для одного округа. Каждый округ разворачивает отдельные экземпляры API, Worker и PostgreSQL.
 
 Центральная маршрутизация по коду округа, системные администраторы и реестр округов относятся к отдельному проекту `ecobilling-control` и не входят в этот репозиторий.
 
 ## Текущий статус
 
-Репозиторий содержит проверенную основу модульного монолита, PostgreSQL persistence, защищённый внутренний provisioning первого директора, пользовательскую аутентификацию, создание контроллеров и жителей директором, аудит, observability, контейнерный запуск, CI и E2E-тесты.
+Основная функциональность backend v1 реализована и прошла автоматизированный verification pass: Release build, unit, architecture, PostgreSQL integration, E2E, Docker Compose validation и сборка container images.
 
-Назначений контроллеров, команд работы со счётчиками и показаниями, расчёта начислений, интеграции с платёжным провайдером и реальных фоновых заданий пока нет. Эти функции нельзя считать готовыми только по наличию доменных и persistence-моделей.
+Реализованы:
 
-Полная матрица реализованного и отложенного объёма находится в [статусе проекта](docs/project-status.md). Открытые бизнес-решения перечислены в [реестре решений](docs/architecture/open-decisions.md). [Финальная проверка безопасности](docs/security/README.md) завершена с решением **NO-GO** для production до закрытия перечисленных эксплуатационных и supply-chain блокеров.
+- Identity/Auth: login, access/refresh JWT, rotation/replay protection, lockout, password setup и rate limiting;
+- Director provisioning и self-profile;
+- создание Controller и Resident директором;
+- Controller assignments по Address и controller worklist;
+- Meter create/get/list/replace;
+- Reading create/history/corrections/backdated rules и assignment-based access;
+- Tariff, TariffVersion, назначение тарифа Account и закрытие периодов;
+- Billing v1 для календарного месяца `Asia/Bishkek`;
+- ручная регистрация подтверждённых Payments, PaymentAllocation и Account overpayment;
+- Resident self-service;
+- operational/financial reports;
+- append-only AuditLog;
+- Outbox persistence/dispatcher;
+- Monthly Billing и Outbox Worker с PostgreSQL distributed locking;
+- административный отзыв всех refresh-сессий пользователя;
+- безопасная поддержка reverse proxy через явный allowlist доверенных proxy.
+
+Проект является **staging-ready backend candidate**. Repository-side production hardening завершён и подтверждён зелёным CI; фактический production deployment остаётся **NO-GO**, пока не закрыты environment-specific блокеры: production secret store, применение раздельных PostgreSQL migration/runtime ролей, TLS/ingress/network policy, backup/restore с RPO/RTO, telemetry backend/dashboards/alerts, immutable release digest/SBOM и необходимые внешние интеграции.
+
+Внешний payment provider и внешний Outbox transport намеренно не симулируются.
+
+Подробный статус: [docs/project-status.md](docs/project-status.md). Production blockers: [docs/security/README.md](docs/security/README.md).
 
 ## Проекты и зависимости
 
-- `EcoBilling.Api` — HTTP composition root, middleware, аутентификация и endpoints.
-- `EcoBilling.Modules` — бизнес-модули, сценарии и контракты.
-- `EcoBilling.Infrastructure` — PostgreSQL, безопасность, аудит и технические адаптеры.
-- `EcoBilling.Worker` — composition root фонового выполнения без копирования бизнес-правил.
+- `EcoBilling.Api` — HTTP composition root, middleware, auth и endpoints.
+- `EcoBilling.Modules` — бизнес-модули, вертикальные сценарии и контракты.
+- `EcoBilling.Infrastructure` — PostgreSQL, EF Core, безопасность, audit, outbox и технические adapters.
+- `EcoBilling.Worker` — фоновые задания без копирования бизнес-правил.
 - `EcoBilling.SharedKernel` — небольшие общие технические типы.
 
 ```text
@@ -28,17 +49,16 @@ Worker ──┬─→ Infrastructure
          └─→ Modules
 ```
 
-Направления `ProjectReference` контролируются исполняемыми ArchitectureTests.
+Направления `ProjectReference` контролируются ArchitectureTests.
 
 ## Требования
 
 - .NET SDK `10.0.401`, закреплённый в `global.json`;
-- Docker Engine или Docker Desktop с Docker Compose v2 для полного локального стека;
-- PowerShell для приведённых ниже примеров команд.
+- Docker Engine или Docker Desktop с Docker Compose v2;
+- PostgreSQL 17 для полного integration/E2E прогона;
+- PowerShell для примеров команд ниже.
 
-## Быстрый запуск через Docker Compose
-
-Создайте локальную конфигурацию и замените все значения-заглушки:
+## Быстрый локальный запуск
 
 ```powershell
 Copy-Item deploy/.env.example deploy/.env
@@ -49,15 +69,13 @@ docker compose --env-file deploy/.env --file deploy/compose.yml ps
 Invoke-RestMethod http://localhost:8080/health/ready
 ```
 
-Пример публичного RSA-ключа позволяет запустить API, но соответствующий private key не хранится в репозитории. Для вызова внутреннего provisioning endpoint нужен EcoBilling.Control с согласованной парой ключей.
+`deploy/.env.example` предназначен только для локального/изолированного запуска. Production secrets должны приходить из внешнего secret store.
 
 Остановка сохраняет named volume PostgreSQL:
 
 ```powershell
 docker compose --env-file deploy/.env --file deploy/compose.yml down
 ```
-
-Подробности: [развёртывание](docs/deployment/README.md), [конфигурация](docs/configuration/README.md), [эксплуатационный runbook](docs/operations/README.md) и [security readiness](docs/security/README.md).
 
 ## Сборка и тесты
 
@@ -67,21 +85,77 @@ dotnet build EcoBilling.slnx --configuration Release --no-restore
 dotnet test EcoBilling.slnx --configuration Release --no-build
 ```
 
-Без `ECOBILLING_TEST_POSTGRES_CONNECTION` тесты, требующие PostgreSQL, явно пропускаются. Для полного прогона с отдельными временными базами используйте инструкцию [тестирования](docs/testing/README.md). CI выполняет полный набор с PostgreSQL и проверяет Docker Compose.
+Без `ECOBILLING_TEST_POSTGRES_CONNECTION` тесты, требующие PostgreSQL, пропускаются. Полный локальный PostgreSQL-прогон описан в [docs/testing/README.md](docs/testing/README.md).
 
-## HTTP-поверхность
+Последний полный verification pass production-readiness ветки:
 
-- `GET /health/live` — liveness процесса;
-- `GET /health/ready` и `GET /health` — readiness с PostgreSQL;
-- `POST /internal/v1/directors` — защищённое идемпотентное создание первого директора.
-- `POST /api/v1/auth/login`, `/refresh`, `/revoke` и `/setup-password` — пользовательская аутентификация и жизненный цикл токенов.
-- `POST /api/v1/controllers` — защищённое идемпотентное создание контроллера директором.
-- `POST /api/v1/residents` — защищённое идемпотентное создание жителя, адреса и лицевого счёта директором.
-- `PUT /api/v1/residents/{residentId}/password` — сброс пароля жителя директором с отзывом refresh-сессий.
-- `GET /swagger` — интерактивное тестирование API в окружении `Development` с поддержкой JWT Bearer через `Authorize`.
+- Architecture: 34/34;
+- Unit: 307/307;
+- PostgreSQL integration: 206/206;
+- E2E: 4/4;
+- Docker Compose validation: passed;
+- images `api`, `worker`, `migrations`, `postgres`: built successfully;
+- Trivy CRITICAL/HIGH scan: 0 findings для всех четырёх финальных images.
 
-Точный контракт, требования JWT, ответы и ошибки описаны в [документации API](docs/api/README.md). OpenAPI доступен только в окружении `Development`; публичная регистрация отсутствует.
+Production-readiness изменения подтверждены повторным зелёным CI.
+
+## Основная HTTP-поверхность
+
+### Identity
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/revoke`
+- `POST /api/v1/auth/setup-password`
+- `POST /api/v1/users/{userId}/sessions/revoke-all` — Director-only administrative revoke.
+
+### Director / management
+- Director profile;
+- Controller/Resident directories и создание;
+- Controller assignments;
+- Account/Address/Meter/Tariff/Billing/Payment/Report management endpoints.
+
+### Controller
+- self-profile;
+- assignments;
+- worklist;
+- внесение показаний только по назначенным ресурсам.
+
+### Resident
+- profile;
+- account/address;
+- meters/readings;
+- charges/payments;
+- financial summary.
+
+Точные маршруты и контракты: [docs/api/README.md](docs/api/README.md).
+
+## Worker и внешние интеграции
+
+Worker содержит реальные задачи monthly billing и outbox dispatch, но schedules по умолчанию выключены. Включать их следует только после проверки соответствующей среды и внешних зависимостей.
+
+Не подключены намеренно:
+
+- payment provider callback/signature/refund/reconciliation;
+- конкретный внешний Outbox publisher/transport;
+- billing v2+ (пени, льготы, нормативы, сложные перерасчёты);
+- формула для billing-периода, пересекающего замену Meter.
+
+## Production readiness
+
+Перед production обязательны:
+
+- внешний secret store и процедуры rotation/revocation;
+- разные PostgreSQL credentials для schema migrations и runtime;
+- TLS termination, trusted proxies и network restrictions;
+- backup/restore drill с утверждёнными RPO/RTO;
+- OTLP collector/backend, dashboards и alerts;
+- фиксация immutable release digest/SBOM и supply-chain policy;
+- migration rehearsal на реалистичной копии данных;
+- rollback/forward-fix runbook;
+- безопасный процесс передачи initial credentials сотрудникам.
+
+См. [deployment](docs/deployment/README.md), [configuration](docs/configuration/README.md), [operations](docs/operations/README.md) и [security readiness](docs/security/README.md).
 
 ## Документация
 
-Начальная точка — [docs/README.md](docs/README.md). Там собраны ссылки на архитектуру и ADR, бизнес-правила, схему PostgreSQL, конфигурацию, API, тестирование, развёртывание и эксплуатацию.
+Начальная точка: [docs/README.md](docs/README.md).

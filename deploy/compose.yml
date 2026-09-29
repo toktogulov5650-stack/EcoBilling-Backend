@@ -15,7 +15,10 @@ x-database-connection: &database-connection
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: ecobilling-postgres:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.postgres
     environment:
       POSTGRES_DB: ecobilling
       POSTGRES_USER: ecobilling
@@ -71,6 +74,9 @@ services:
       UserAuthentication__SigningKeys__0__KeyId: ${USER_AUTH_KEY_ID:-users-local-1}
       UserAuthentication__SigningKeys__0__SecretBase64: ${USER_AUTH_SIGNING_KEY:?Set USER_AUTH_SIGNING_KEY in deploy/.env}
       AllowedHosts: ${ALLOWED_HOSTS:?Set ALLOWED_HOSTS in deploy/.env}
+      ReverseProxy__Enabled: ${REVERSE_PROXY_ENABLED:-false}
+      ReverseProxy__ForwardLimit: ${REVERSE_PROXY_FORWARD_LIMIT:-1}
+      ReverseProxy__KnownProxies__0: ${TRUSTED_PROXY_IP:-}
       Observability__OtlpEndpoint: ${OTLP_ENDPOINT:-}
     ports:
       - "${ECOBILLING_API_PORT:-8080}:8080"

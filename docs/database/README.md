@@ -35,7 +35,7 @@ dotnet ef database update --project src/EcoBilling.Infrastructure --startup-proj
 Строка подключения не должна попадать в исходный код, `appsettings`, логи или отчёты. Миграции не редактируются вручную без отдельного объяснения.
 Rollback первой миграции удаляет таблицу и созданную ею схему `identity`; повторное применение создаёт их заново.
 
-В контейнерном контуре миграции выполняет отдельный одноразовый service до старта API и Worker. Runtime-приложения схему автоматически не меняют. Для production пользователь migrations должен быть отделён от минимальной runtime-роли; конкретные роли и grant script ещё не зафиксированы. Порядок обновления и ограничения rollback описаны в [эксплуатационном runbook](../operations/README.md), а переменные подключения — в [справочнике конфигурации](../configuration/README.md).
+В контейнерном контуре миграции выполняет отдельный одноразовый service до старта API и Worker. Runtime-приложения схему автоматически не меняют. Для production предусмотрены отдельные роли `ecobilling_migrator` и `ecobilling_runtime`; bootstrap/grant scripts находятся в `deploy/postgres` и должны быть применены и проверены в целевом окружении. Порядок обновления и ограничения rollback описаны в [эксплуатационном runbook](../operations/README.md), а переменные подключения — в [справочнике конфигурации](../configuration/README.md).
 
 ## Residents
 
@@ -80,7 +80,7 @@ Rollback миграции удаляет таблицу и schema `controllers`,
 | `account_number` | `text` | NOT NULL, unique, хранится в канонической форме |
 | `created_at` | `timestamp with time zone` | NOT NULL, UTC |
 
-Миграция `AddAddresses` позднее добавляет обязательный `address_id` и индекс `ix_accounts_address_id`. Миграция `AddResidentCreation` заменяет прежний индекс Resident на уникальный `ux_accounts_resident_id`, фиксируя правило v1 «один Resident — один Account». Поля Balance, долга и переплаты отсутствуют до реализации утверждённой финансовой политики.
+Миграция `AddAddresses` позднее добавляет обязательный `address_id` и индекс `ix_accounts_address_id`. Миграция `AddResidentCreation` заменяет прежний индекс Resident на уникальный `ux_accounts_resident_id`, фиксируя правило v1 «один Resident — один Account». Финальная модель v1 также хранит `overpayment numeric(18,2)` с ограничением `overpayment >= 0`; задолженность вычисляется из Charges и PaymentAllocations.
 
 Rollback миграции удаляет таблицу и schema `accounts`, не затрагивая Identity, Residents или Controllers.
 
@@ -132,7 +132,7 @@ Rollback миграции удаляет таблицу и schema `meters`, не
 | `measured_at` | `timestamp with time zone` | NOT NULL, UTC |
 | `created_at` | `timestamp with time zone` | NOT NULL, UTC |
 
-Неуникальный индекс `ix_meter_readings_meter_id_measured_at` создан по `(meter_id, measured_at)`. Precision и scale для `value`, уникальность времени измерения и проверка монотонности не вводятся до утверждения бизнес-правил.
+Неуникальный индекс `ix_meter_readings_meter_id_measured_at` создан по `(meter_id, measured_at)`. Финальная модель v1 дополнительно хранит optional `author_user_id`, `source`, optional `supersedes_reading_id` и `correction_reason`; `supersedes_reading_id` имеет filtered unique index. Монотонность обычных показаний и backdated/correction rules проверяются application layer.
 
 Сгенерированный rollback дополнен удалением пустой schema `readings`, чтобы откат был симметричен применению миграции. Он не затрагивает Meters.
 
@@ -179,7 +179,7 @@ Precision и scale ставки не фиксируются до утвержд�
 
 Уникальный индекс `ux_charges_account_id_period_start_period_end` предотвращает точный повтор начисления одного периода для Account. Индекс `ix_charges_tariff_version_id` поддерживает связь с исторической версией тарифа.
 
-Миграция не создаёт формулу, статус или баланс. Rollback удаляет таблицу и schema `billing`, не затрагивая Accounts и Tariffs.
+Финальная модель v1 дополнительно хранит `previous_reading_id`, `current_reading_id`, `consumption`, `calculation_version` и `currency`; формула и правила выбора входных данных реализованы application layer. Rollback удаляет таблицу и schema `billing`, не затрагивая Accounts и Tariffs.
 
 ## Payments
 
@@ -196,13 +196,13 @@ Precision и scale ставки не фиксируются до утвержд�
 
 Индекс `ix_payments_account_id` поддерживает получение истории Account. Уникальный индекс `ux_payments_idempotency_key` обеспечивает базовую идемпотентность; сравнение ключей регистрозависимо, значение сохраняется без нормализации.
 
-Миграция не создаёт ProviderReference, callback, статус, распределение по начислениям или баланс. Rollback удаляет таблицу и schema `payments`, не затрагивая Accounts или Billing.
+Финальная модель v1 добавляет `payments.payment_allocations` для распределения Payment по Charge; нераспределённый остаток отражается в `accounts.accounts.overpayment`. Provider callback/refund/reconciliation остаются внешней интеграцией. Rollback удаляет таблицу и schema `payments`, не затрагивая Accounts или Billing.
 
 ## Reports
 
 Reports не создаёт отдельную schema, таблицу или миграцию. `DistrictOperationalSummary` выполняет один read-only PostgreSQL statement с `count(*)` по существующим таблицам модулей и не создаёт вторичный источник истины.
 
-Финансовые суммы, задолженность и показатели работы контроллеров не вычисляются до утверждения соответствующих правил. Для тяжёлых отчётов в будущем должен использоваться Worker, а не длительный синхронный HTTP-запрос.
+Reports v1 вычисляют operational и financial read models из существующих таблиц, включая charges, payments, debt, overpayment, consumption и показатели Controller. Для тяжёлых отчётов в будущем должен использоваться Worker, а не длительный синхронный HTTP-запрос.
 
 ## Audit и Outbox
 
@@ -239,9 +239,7 @@ infrastructure.outbox_messages:
 | retry_count | integer | NOT NULL, не меньше нуля |
 | last_error | varchar(2000) | nullable |
 
-Индекс (processed_at, occurred_at) поддерживает выборку ожидающих сообщений. Реальные
-producer, publisher, lease/locking, retry/backoff и dead-letter не фиксируются до появления
-утверждённой внешней интеграции. Provisioning директора Outbox-сообщение не создаёт.
+Индекс `(processed_at, occurred_at)` поддерживает выборку ожидающих сообщений. Billing и Payments создают OutboxMessage атомарно; dispatcher хранит retry state и использует PostgreSQL coordination. Внешний publisher/transport остаётся отдельной production-интеграцией.
 
 ## Интеграционные тесты
 

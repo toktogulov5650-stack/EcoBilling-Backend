@@ -19,10 +19,13 @@ RUN dotnet publish src/EcoBilling.Api/EcoBilling.Api.csproj \
     --no-restore \
     /p:UseAppHost=false
 
-FROM build AS migrations
+FROM ${DOTNET_SDK_IMAGE} AS migrations
+WORKDIR /src
+COPY --from=build /src /src
 RUN chown -R $APP_UID:$APP_UID /src
 USER $APP_UID
 RUN dotnet tool restore
+ENV DOTNET_EnableDiagnostics=0
 ENTRYPOINT ["dotnet", "tool", "run", "dotnet-ef", "--", "database", "update", "--project", "src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj", "--startup-project", "src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj", "--configuration", "Release", "--no-build"]
 
 FROM ${DOTNET_ASPNET_IMAGE} AS final

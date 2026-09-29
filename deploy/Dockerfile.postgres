@@ -1,0 +1,13 @@
+ARG POSTGRES_IMAGE=postgres:17-alpine
+ARG GOLANG_IMAGE=golang:1.25.13-alpine
+
+FROM ${GOLANG_IMAGE} AS gosu-build
+ENV CGO_ENABLED=0
+ENV GOBIN=/out
+RUN go install github.com/tianon/gosu@6456aaa0f3c854d199d0f037f068eb97515b7513
+RUN /out/gosu --version
+
+FROM ${POSTGRES_IMAGE}
+COPY --from=gosu-build /out/gosu /usr/local/bin/gosu
+RUN chmod 0755 /usr/local/bin/gosu \
+    && gosu nobody true

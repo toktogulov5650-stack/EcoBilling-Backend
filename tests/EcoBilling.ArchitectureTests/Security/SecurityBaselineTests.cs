@@ -33,6 +33,25 @@ public sealed class SecurityBaselineTests
     }
 
     [Fact]
+    public void ForwardedHeaders_AreDisabledByDefaultAndRequireExplicitTrustedProxy()
+    {
+        using var document = JsonDocument.Parse(
+            ReadRepositoryFile("src", "EcoBilling.Api", "appsettings.json"));
+        var reverseProxy = document.RootElement.GetProperty("ReverseProxy");
+        var compose = ReadRepositoryFile("deploy", "compose.yml");
+
+        Assert.False(reverseProxy.GetProperty("Enabled").GetBoolean());
+        Assert.Contains(
+            "ReverseProxy__Enabled: ${REVERSE_PROXY_ENABLED:-false}",
+            compose,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "ReverseProxy__KnownProxies__0: ${TRUSTED_PROXY_IP:-}",
+            compose,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void UserJwtSigningKey_IsRequiredFromEnvironmentAndNotStoredInAppSettings()
     {
         var appSettings = ReadRepositoryFile("src", "EcoBilling.Api", "appsettings.json");
@@ -46,6 +65,45 @@ public sealed class SecurityBaselineTests
             compose,
             StringComparison.Ordinal);
         Assert.Contains("USER_AUTH_SIGNING_KEY=", environmentTemplate, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReverseProxy_IsDisabledByDefaultAndRequiresExplicitTrustedProxy()
+    {
+        var appSettings = ReadRepositoryFile("src", "EcoBilling.Api", "appsettings.json");
+        var compose = ReadRepositoryFile("deploy", "compose.yml");
+
+        Assert.Contains("\"Enabled\": false", appSettings, StringComparison.Ordinal);
+        Assert.Contains("ReverseProxy__Enabled", compose, StringComparison.Ordinal);
+        Assert.Contains("ReverseProxy__KnownProxies__0", compose, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "ASPNETCORE_FORWARDEDHEADERS_ENABLED",
+            compose,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProductionPostgresRoleScripts_SeparateMigratorAndRuntimePrivileges()
+    {
+        var bootstrap = ReadRepositoryFile(
+            "deploy",
+            "postgres",
+            "bootstrap-production-roles.sql");
+        var grants = ReadRepositoryFile(
+            "deploy",
+            "postgres",
+            "grant-runtime.sql");
+
+        Assert.Contains("ecobilling_migrator", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("ecobilling_runtime", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOCREATEDB", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("NOCREATEROLE", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("GRANT CREATE ON DATABASE", bootstrap, StringComparison.Ordinal);
+
+        Assert.Contains("TO ecobilling_runtime", grants, StringComparison.Ordinal);
+        Assert.Contains("REVOKE UPDATE, DELETE", grants, StringComparison.Ordinal);
+        Assert.Contains("infrastructure.audit_logs", grants, StringComparison.Ordinal);
+        Assert.Contains("ALTER DEFAULT PRIVILEGES", grants, StringComparison.Ordinal);
     }
 
     private static string ReadRepositoryFile(params string[] pathParts) =>

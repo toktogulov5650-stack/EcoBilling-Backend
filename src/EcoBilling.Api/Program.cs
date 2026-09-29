@@ -64,6 +64,7 @@ if (useLocalConfiguration)
         reloadOnChange: true);
 }
 
+builder.Services.AddEcoBillingReverseProxy(builder.Configuration);
 builder.Logging.AddEcoBillingStructuredLogging(builder.Configuration);
 
 var connectionString = builder.Configuration.GetConnectionString("EcoBilling");
@@ -207,6 +208,7 @@ builder.Services.AddScoped<GetAddressByIdHandler>();
 
 var app = builder.Build();
 
+app.UseEcoBillingReverseProxy();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<RequestObservabilityMiddleware>();
 app.UseExceptionHandler();
@@ -236,6 +238,7 @@ app.MapEcoBillingHealthEndpoints();
 app.MapDirectorProvisioningEndpoints();
 app.MapDirectorSelfServiceEndpoints();
 app.MapUserAuthenticationEndpoints();
+app.MapUserAdministrationEndpoints();
 app.MapControllerManagementEndpoints();
 app.MapAccountManagementEndpoints();
 app.MapResidentManagementEndpoints();

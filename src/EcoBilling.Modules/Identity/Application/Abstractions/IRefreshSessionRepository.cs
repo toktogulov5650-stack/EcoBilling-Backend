@@ -18,6 +18,13 @@ public interface IRefreshSessionRepository
         string tokenHash,
         DateTimeOffset now,
         CancellationToken cancellationToken);
+
+    Task<UserSessionRevocationResult> RevokeAllForUserAsync(
+        UserId userId,
+        string actorId,
+        string correlationId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
 }
 
 public enum RefreshSessionRotationOutcome
@@ -31,3 +38,13 @@ public sealed record RefreshSessionRotationResult(
     RefreshSessionRotationOutcome Outcome,
     UserId? UserId = null,
     UserRole? Role = null);
+
+public enum UserSessionRevocationOutcome
+{
+    Revoked = 0,
+    UserNotFound = 1
+}
+
+public sealed record UserSessionRevocationResult(
+    UserSessionRevocationOutcome Outcome,
+    int RevokedSessions = 0);

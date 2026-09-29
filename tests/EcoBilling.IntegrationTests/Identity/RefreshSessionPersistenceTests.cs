@@ -87,6 +87,72 @@ public sealed class RefreshSessionPersistenceTests
     }
 
     [PostgreSqlFact]
+    public async Task RevokeAllForUser_RevokesEveryFamilyAndWritesAudit()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using (var context = database.CreateContext())
+        {
+            await context.Database.MigrateAsync();
+            var user = CreateUser();
+            context.UserAccounts.Add(user);
+            await context.SaveChangesAsync();
+
+            var repository = new RefreshSessionRepository(context);
+            await repository.CreateAsync(
+                CreateSession(user.Id, new string('1', 64)),
+                CancellationToken.None);
+            await repository.CreateAsync(
+                CreateSession(user.Id, new string('2', 64)),
+                CancellationToken.None);
+
+            var result = await repository.RevokeAllForUserAsync(
+                user.Id,
+                "director-user-id",
+                "trace-revoke-all",
+                Now.AddMinutes(3),
+                CancellationToken.None);
+
+            Assert.Equal(UserSessionRevocationOutcome.Revoked, result.Outcome);
+            Assert.Equal(2, result.RevokedSessions);
+        }
+
+        await using var verificationContext = database.CreateContext();
+        var sessions = await verificationContext.RefreshSessions
+            .AsNoTracking()
+            .ToArrayAsync();
+        Assert.Equal(2, sessions.Length);
+        Assert.All(
+            sessions,
+            session => Assert.Equal(Now.AddMinutes(3), session.RevokedAt));
+
+        var audit = await verificationContext.AuditLogs
+            .AsNoTracking()
+            .SingleAsync(
+                entry => entry.Action == "identity.user.sessions_revoked");
+        Assert.Equal("director-user-id", audit.ActorId);
+        Assert.Equal("trace-revoke-all", audit.CorrelationId);
+    }
+
+    [PostgreSqlFact]
+    public async Task RevokeAllForUser_ReturnsNotFoundForUnknownUserWithoutAudit()
+    {
+        await using var database = await PostgreSqlTestDatabase.CreateAsync();
+        await using var context = database.CreateContext();
+        await context.Database.MigrateAsync();
+
+        var repository = new RefreshSessionRepository(context);
+        var result = await repository.RevokeAllForUserAsync(
+            new UserId(Guid.NewGuid()),
+            "director-user-id",
+            "trace-revoke-all",
+            Now,
+            CancellationToken.None);
+
+        Assert.Equal(UserSessionRevocationOutcome.UserNotFound, result.Outcome);
+        Assert.Empty(await context.AuditLogs.AsNoTracking().ToArrayAsync());
+    }
+
+    [PostgreSqlFact]
     public async Task Revoke_RevokesFamilyAndIsIdempotentForUnknownToken()
     {
         await using var database = await PostgreSqlTestDatabase.CreateAsync();

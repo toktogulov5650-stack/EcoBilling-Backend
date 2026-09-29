@@ -38,7 +38,7 @@ docker compose --env-file deploy/.env -f deploy/compose.yml down
 3. API и Worker запускаются только после успешных миграций.
 4. API считается готовым после `/health/ready`.
 
-API публикуется на `ECOBILLING_API_PORT` (`8080` по умолчанию). PostgreSQL наружу не публикуется. Runtime-контейнеры работают non-root, с read-only root filesystem, writable `/tmp`, удалёнными capabilities, `no-new-privileges` и 30-секундным graceful shutdown. TLS должен завершаться reverse proxy или ingress перед API. До production нужно также ограничить доверенные proxy, корректно настроить forwarded headers и убедиться, что внешний Host входит в `AllowedHosts`.
+API публикуется на `ECOBILLING_API_PORT` (`8080` по умолчанию). PostgreSQL наружу не публикуется. Runtime-контейнеры работают non-root, с read-only root filesystem, writable `/tmp`, удалёнными capabilities, `no-new-privileges` и 30-секундным graceful shutdown. TLS должен завершаться reverse proxy или ingress перед API. Forwarded headers отключены по умолчанию: для production proxy задайте `ReverseProxy__Enabled=true`, точный `KnownProxies` IP и корректный `ForwardLimit`. Внешний Host обязан входить в `AllowedHosts`.
 
 В production не задавайте `ASPNETCORE_ENVIRONMENT` и `DOTNET_ENVIRONMENT` как `Development`; значения Compose по умолчанию — `Production`. Dockerfile фиксируют patch-версии .NET, поэтому их следует обновлять вместе с плановым обновлением SDK/runtime и полной проверкой образов.
 
@@ -51,7 +51,7 @@ Worker требует строку подключения `ConnectionStrings:Eco
 - `MaxAttempts` — общее максимальное число попыток, не меньше `1`;
 - `RetryDelay` — неотрицательная задержка между попытками в формате `TimeSpan`.
 
-Значения по умолчанию проекта — три попытки и пять секунд. Worker корректно передаёт сигнал остановки выполняемому заданию. Worker самостоятельно миграции не применяет; в Compose это делает отдельный одноразовый service. Реальные фоновые задания на этапе ADR-0016 не включены.
+Значения по умолчанию runner — три попытки и пять секунд. Worker корректно передаёт сигнал остановки выполняемому заданию. Worker самостоятельно миграции не применяет; в Compose это делает отдельный одноразовый service. Monthly Billing и Outbox jobs зарегистрированы, но их schedules по умолчанию выключены.
 
 ## Внутренняя аутентификация API
 
@@ -85,7 +85,7 @@ API предоставляет:
 Observability__OtlpEndpoint=http://otel-collector:4317
 ```
 
-Если значение не задано, OTLP-экспорт не запускается. Выбор collector/backend, sampling, dashboards, alerts и сроки хранения остаются частью production deployment. Worker публикует ошибки и длительность runner в logs/metrics/traces. Его текущий container health check подтверждает только жизнь PID 1; отдельной readiness семантики заданий нет, потому что реальные jobs ещё не зарегистрированы.
+Если значение не задано, OTLP-экспорт не запускается. Выбор collector/backend, sampling, dashboards, alerts и сроки хранения остаются частью production deployment. Worker публикует ошибки и длительность runner в logs/metrics/traces. Его container health check подтверждает жизнь PID 1. Успех/ошибки Monthly Billing и Outbox отслеживаются через structured logs/metrics/traces; отдельного HTTP readiness endpoint у Worker нет.
 
 ## Граница production readiness
 
@@ -93,7 +93,7 @@ Compose является воспроизводимым локальным и st
 
 - TLS termination и доверенную сетевую границу;
 - production secret store и процедуру ротации секретов;
-- отдельные минимальные PostgreSQL-роли для migrations и runtime;
+- фактическое применение отдельных PostgreSQL roles для migrations/runtime (scripts уже находятся в `deploy/postgres`);
 - backup/restore, RPO, RTO и SLA;
 - telemetry backend, dashboards, alerts и сроки хранения;
 - оркестратор, replicas и стратегию rollout/rollback.
@@ -101,3 +101,16 @@ Compose является воспроизводимым локальным и st
 Эти решения должны быть утверждены для конкретного окружения до production release. Обязательные настройки перечислены в [справочнике конфигурации](../configuration/README.md), а безопасная последовательность запуска и обновления — в [эксплуатационном runbook](../operations/README.md).
 
 Текущее решение и доказательства финальной проверки находятся в [отчёте безопасности](../security/README.md).
+
+
+## Production PostgreSQL role split
+
+Локальный Compose остаётся удобным single-credential контуром. Для production используйте отдельные credentials.
+
+1. Администратор запускает `deploy/postgres/bootstrap-production-roles.sql`.
+2. Migration job подключается как `ecobilling_migrator`.
+3. После EF migrations администратор запускает `deploy/postgres/grant-runtime.sql`.
+4. API и Worker подключаются только как `ecobilling_runtime`.
+5. Проверяется, что runtime role не может менять schema и UPDATE/DELETE AuditLog.
+
+Пароли ролей не передаются через Git или tracked `.env`. Полная процедура и evidence перечислены в [production readiness checklist](../operations/production-readiness.md).

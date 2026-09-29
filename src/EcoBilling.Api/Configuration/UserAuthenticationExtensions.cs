@@ -79,6 +79,7 @@ public static class UserAuthenticationExtensions
         services.AddScoped<LoginHandler>();
         services.AddScoped<RefreshHandler>();
         services.AddScoped<RevokeRefreshTokenHandler>();
+        services.AddScoped<RevokeUserSessionsHandler>();
         services.AddScoped<SetInitialPasswordHandler>();
 
         return services;

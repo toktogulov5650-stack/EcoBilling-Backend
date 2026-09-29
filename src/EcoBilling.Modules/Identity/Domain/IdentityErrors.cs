@@ -39,6 +39,11 @@ public static class IdentityErrors
         "The new password does not satisfy the current password policy.",
         ErrorType.Validation);
 
+    public static Error UserNotFound { get; } = new(
+        "identity.user_not_found",
+        "The user account was not found.",
+        ErrorType.NotFound);
+
     public static Error PasswordSetupNotAvailable { get; } = new(
         "auth.password_setup_not_available",
         "Initial password setup is not available for this account.",

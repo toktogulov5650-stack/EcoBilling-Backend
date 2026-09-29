@@ -138,23 +138,40 @@ public sealed class ControllerAssignmentRepository(EcoBillingDbContext dbContext
     {
         ArgumentNullException.ThrowIfNull(controllerId);
 
-        return await (
-            from assignment in dbContext.ControllerAssignments.AsNoTracking()
-            join address in dbContext.Addresses.AsNoTracking()
-                on assignment.AddressId equals address.Id
-            where assignment.ControllerId == controllerId
-            orderby address.SearchText, assignment.CreatedAt
-            select new ControllerAssignmentDetails(
-                assignment.Id.Value,
-                assignment.ControllerId.Value,
-                assignment.AddressId.Value,
-                address.Locality,
-                address.Street,
-                address.House,
-                address.Building,
-                address.Apartment,
-                assignment.CreatedAt))
+        var assignments = await dbContext.ControllerAssignments
+            .AsNoTracking()
+            .Where(assignment => assignment.ControllerId == controllerId)
+            .OrderBy(assignment => assignment.CreatedAt)
             .ToListAsync(cancellationToken);
+
+        var result = new List<ControllerAssignmentDetails>(assignments.Count);
+        foreach (var assignment in assignments)
+        {
+            var address = await dbContext.Addresses
+                .AsNoTracking()
+                .SingleAsync(
+                    candidate => candidate.Id == assignment.AddressId,
+                    cancellationToken);
+
+            result.Add(
+                new ControllerAssignmentDetails(
+                    assignment.Id.Value,
+                    assignment.ControllerId.Value,
+                    assignment.AddressId.Value,
+                    address.Locality,
+                    address.Street,
+                    address.House,
+                    address.Building,
+                    address.Apartment,
+                    assignment.CreatedAt));
+        }
+
+        return result
+            .OrderBy(item => item.Locality, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.Street, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.House, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(item => item.CreatedAt)
+            .ToArray();
     }
 
     private static AuditLog CreateAssignedAudit(

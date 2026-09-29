@@ -8,170 +8,200 @@ namespace EcoBilling.Infrastructure.Persistence.Reports;
 public sealed class ResidentSelfServiceReader(EcoBillingDbContext dbContext)
     : IResidentSelfServiceReader
 {
-    public Task<ResidentAccountView?> GetAccountAsync(
+    public async Task<ResidentAccountView?> GetAccountAsync(
         UserId userId,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(userId);
 
-        return (
-            from resident in dbContext.Residents.AsNoTracking()
-            join account in dbContext.Accounts.AsNoTracking()
-                on resident.Id equals account.ResidentId
-            join address in dbContext.Addresses.AsNoTracking()
-                on account.AddressId equals address.Id
-            where resident.UserId == userId
-            select new ResidentAccountView(
-                resident.Id.Value,
-                resident.FullName,
-                account.Id.Value,
-                account.Number.Value,
-                address.Id.Value,
-                address.Locality,
-                address.Street,
-                address.House,
-                address.Building,
-                address.Apartment))
-            .SingleOrDefaultAsync(cancellationToken);
+        var resident = await dbContext.Residents
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.UserId == userId,
+                cancellationToken);
+        if (resident is null)
+        {
+            return null;
+        }
+
+        var account = await dbContext.Accounts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.ResidentId == resident.Id,
+                cancellationToken);
+        if (account is null)
+        {
+            return null;
+        }
+
+        var address = await dbContext.Addresses
+            .AsNoTracking()
+            .SingleAsync(
+                candidate => candidate.Id == account.AddressId,
+                cancellationToken);
+
+        return new ResidentAccountView(
+            resident.Id.Value,
+            resident.FullName,
+            account.Id.Value,
+            account.Number.Value,
+            address.Id.Value,
+            address.Locality,
+            address.Street,
+            address.House,
+            address.Building,
+            address.Apartment);
     }
 
     public async Task<IReadOnlyList<ResidentMeterView>> ListMetersAsync(
         UserId userId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(userId);
+        var account = await GetAccountEntityAsync(userId, cancellationToken);
+        if (account is null)
+        {
+            return [];
+        }
 
-        return await (
-            from resident in dbContext.Residents.AsNoTracking()
-            join account in dbContext.Accounts.AsNoTracking()
-                on resident.Id equals account.ResidentId
-            join meter in dbContext.Meters.AsNoTracking()
-                on account.Id equals meter.AccountId
-            where resident.UserId == userId
-            orderby meter.IsActive descending, meter.InstalledAt descending
-            select new ResidentMeterView(
-                meter.Id.Value,
-                meter.SerialNumber.Value,
-                meter.InstalledAt,
-                meter.IsActive,
-                meter.RetiredAt))
+        var meters = await dbContext.Meters
+            .AsNoTracking()
+            .Where(meter => meter.AccountId == account.Id)
+            .OrderByDescending(meter => meter.IsActive)
+            .ThenByDescending(meter => meter.InstalledAt)
             .ToListAsync(cancellationToken);
+
+        return meters.Select(
+                meter => new ResidentMeterView(
+                    meter.Id.Value,
+                    meter.SerialNumber.Value,
+                    meter.InstalledAt,
+                    meter.IsActive,
+                    meter.RetiredAt))
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<ResidentReadingView>> ListReadingsAsync(
         UserId userId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(userId);
+        var account = await GetAccountEntityAsync(userId, cancellationToken);
+        if (account is null)
+        {
+            return [];
+        }
 
-        return await (
-            from resident in dbContext.Residents.AsNoTracking()
-            join account in dbContext.Accounts.AsNoTracking()
-                on resident.Id equals account.ResidentId
-            join meter in dbContext.Meters.AsNoTracking()
-                on account.Id equals meter.AccountId
-            join reading in dbContext.MeterReadings.AsNoTracking()
-                on meter.Id equals reading.MeterId
-            where resident.UserId == userId
-            orderby reading.MeasuredAt descending, reading.CreatedAt descending
-            select new ResidentReadingView(
-                reading.Id.Value,
-                reading.MeterId.Value,
-                reading.Value.Value,
-                reading.MeasuredAt,
-                reading.Source.ToString()))
+        var meters = await dbContext.Meters
+            .AsNoTracking()
+            .Where(meter => meter.AccountId == account.Id)
             .ToListAsync(cancellationToken);
+
+        var result = new List<ResidentReadingView>();
+        foreach (var meter in meters)
+        {
+            var readings = await dbContext.MeterReadings
+                .AsNoTracking()
+                .Where(reading => reading.MeterId == meter.Id)
+                .OrderByDescending(reading => reading.MeasuredAt)
+                .ThenByDescending(reading => reading.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            result.AddRange(
+                readings.Select(
+                    reading => new ResidentReadingView(
+                        reading.Id.Value,
+                        reading.MeterId.Value,
+                        reading.Value.Value,
+                        reading.MeasuredAt,
+                        reading.Source.ToString())));
+        }
+
+        return result
+            .OrderByDescending(item => item.MeasuredAt)
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<ResidentChargeView>> ListChargesAsync(
         UserId userId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(userId);
+        var account = await GetAccountEntityAsync(userId, cancellationToken);
+        if (account is null)
+        {
+            return [];
+        }
 
-        return await (
-            from resident in dbContext.Residents.AsNoTracking()
-            join account in dbContext.Accounts.AsNoTracking()
-                on resident.Id equals account.ResidentId
-            join charge in dbContext.Charges.AsNoTracking()
-                on account.Id equals charge.AccountId
-            where resident.UserId == userId
-            orderby charge.PeriodStart descending
-            select new ResidentChargeView(
-                charge.Id.Value,
-                charge.PeriodStart,
-                charge.PeriodEnd,
-                charge.Consumption,
-                charge.Amount,
-                charge.Currency,
-                charge.CalculationVersion))
+        var charges = await dbContext.Charges
+            .AsNoTracking()
+            .Where(charge => charge.AccountId == account.Id)
+            .OrderByDescending(charge => charge.PeriodStart)
             .ToListAsync(cancellationToken);
+
+        return charges.Select(
+                charge => new ResidentChargeView(
+                    charge.Id.Value,
+                    charge.PeriodStart,
+                    charge.PeriodEnd,
+                    charge.Consumption,
+                    charge.Amount,
+                    charge.Currency,
+                    charge.CalculationVersion))
+            .ToArray();
     }
 
     public async Task<IReadOnlyList<ResidentPaymentView>> ListPaymentsAsync(
         UserId userId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(userId);
+        var account = await GetAccountEntityAsync(userId, cancellationToken);
+        if (account is null)
+        {
+            return [];
+        }
 
-        return await (
-            from resident in dbContext.Residents.AsNoTracking()
-            join account in dbContext.Accounts.AsNoTracking()
-                on resident.Id equals account.ResidentId
-            join payment in dbContext.Payments.AsNoTracking()
-                on account.Id equals payment.AccountId
-            where resident.UserId == userId
-            orderby payment.PaidAt descending
-            select new ResidentPaymentView(
-                payment.Id.Value,
-                payment.Amount.Value,
-                payment.PaidAt))
+        var payments = await dbContext.Payments
+            .AsNoTracking()
+            .Where(payment => payment.AccountId == account.Id)
+            .OrderByDescending(payment => payment.PaidAt)
             .ToListAsync(cancellationToken);
+
+        return payments.Select(
+                payment => new ResidentPaymentView(
+                    payment.Id.Value,
+                    payment.Amount.Value,
+                    payment.PaidAt))
+            .ToArray();
     }
 
     public async Task<ResidentFinancialView?> GetFinancialAsync(
         UserId userId,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(userId);
-
-        var accountId = await (
-            from resident in dbContext.Residents.AsNoTracking()
-            join account in dbContext.Accounts.AsNoTracking()
-                on resident.Id equals account.ResidentId
-            where resident.UserId == userId
-            select (Guid?)account.Id.Value)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (accountId is null)
+        var account = await GetAccountEntityAsync(userId, cancellationToken);
+        if (account is null)
         {
             return null;
         }
 
-        var typedAccountId = new EcoBilling.Modules.Accounts.Domain.AccountId(
-            accountId.Value);
-
-        var totalCharges = await dbContext.Charges
+        var charges = await dbContext.Charges
             .AsNoTracking()
-            .Where(charge => charge.AccountId == typedAccountId)
-            .SumAsync(charge => (decimal?)charge.Amount, cancellationToken) ?? 0m;
+            .Where(charge => charge.AccountId == account.Id)
+            .ToListAsync(cancellationToken);
+        var totalCharges = charges.Sum(charge => charge.Amount);
 
         var payments = await dbContext.Payments
             .AsNoTracking()
-            .Where(payment => payment.AccountId == typedAccountId)
+            .Where(payment => payment.AccountId == account.Id)
             .ToListAsync(cancellationToken);
         var totalPayments = payments.Sum(payment => payment.Amount.Value);
 
-        var allocated = await (
-            from allocation in dbContext.PaymentAllocations.AsNoTracking()
-            join payment in dbContext.Payments.AsNoTracking()
-                on allocation.PaymentId equals payment.Id
-            where payment.AccountId == typedAccountId
-            select (decimal?)allocation.Amount)
-            .SumAsync(cancellationToken) ?? 0m;
-
-        var account = await dbContext.Accounts
-            .AsNoTracking()
-            .SingleAsync(candidate => candidate.Id == typedAccountId, cancellationToken);
+        var paymentIds = payments.Select(payment => payment.Id).ToArray();
+        var allocated = paymentIds.Length == 0
+            ? 0m
+            : (await dbContext.PaymentAllocations
+                .AsNoTracking()
+                .Where(allocation => paymentIds.Contains(allocation.PaymentId))
+                .ToListAsync(cancellationToken))
+                .Sum(allocation => allocation.Amount);
 
         return new ResidentFinancialView(
             totalCharges,
@@ -179,5 +209,28 @@ public sealed class ResidentSelfServiceReader(EcoBillingDbContext dbContext)
             Math.Max(0m, totalCharges - allocated),
             account.Overpayment,
             "KGS");
+    }
+
+    private async Task<EcoBilling.Modules.Accounts.Domain.Account?> GetAccountEntityAsync(
+        UserId userId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(userId);
+
+        var resident = await dbContext.Residents
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.UserId == userId,
+                cancellationToken);
+        if (resident is null)
+        {
+            return null;
+        }
+
+        return await dbContext.Accounts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                account => account.ResidentId == resident.Id,
+                cancellationToken);
     }
 }

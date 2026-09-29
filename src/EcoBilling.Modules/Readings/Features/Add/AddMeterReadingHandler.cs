@@ -95,6 +95,9 @@ public sealed class AddMeterReadingHandler
             ReadingPersistenceOutcome.BackdatedRequiresDirector =>
                 Result<MeterReadingId>.Failure(
                     MeterReadingErrors.BackdatedReadingRequiresDirector),
+            ReadingPersistenceOutcome.BackdatedReasonRequired =>
+                Result<MeterReadingId>.Failure(
+                    MeterReadingErrors.BackdatedReasonRequired),
             ReadingPersistenceOutcome.SupersededReadingNotFound =>
                 Result<MeterReadingId>.Failure(MeterReadingErrors.NotFound),
             _ => throw new InvalidOperationException(

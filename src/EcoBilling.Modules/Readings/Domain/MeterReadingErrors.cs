@@ -54,6 +54,11 @@ public static class MeterReadingErrors
         "The correction reason is invalid.",
         ErrorType.Validation);
 
+    public static Error AlreadyCorrected { get; } = new(
+        "reading.already_corrected",
+        "The selected reading already has a correction.",
+        ErrorType.Conflict);
+
     public static Error AccessDenied { get; } = new(
         "reading.access_denied",
         "The controller is not assigned to this meter's address.",

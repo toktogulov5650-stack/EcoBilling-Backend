@@ -35,7 +35,7 @@ dotnet ef database update --project src/EcoBilling.Infrastructure --startup-proj
 Строка подключения не должна попадать в исходный код, `appsettings`, логи или отчёты. Миграции не редактируются вручную без отдельного объяснения.
 Rollback первой миграции удаляет таблицу и созданную ею схему `identity`; повторное применение создаёт их заново.
 
-В контейнерном контуре миграции выполняет отдельный одноразовый service до старта API и Worker. Runtime-приложения схему автоматически не меняют. Для production пользователь migrations должен быть отделён от минимальной runtime-роли; конкретные роли и grant script ещё не зафиксированы. Порядок обновления и ограничения rollback описаны в [эксплуатационном runbook](../operations/README.md), а переменные подключения — в [справочнике конфигурации](../configuration/README.md).
+В контейнерном контуре миграции выполняет отдельный одноразовый service до старта API и Worker. Runtime-приложения схему автоматически не меняют. Для production предусмотрены отдельные роли `ecobilling_migrator` и `ecobilling_runtime`; bootstrap/grant scripts находятся в `deploy/postgres` и должны быть применены и проверены в целевом окружении. Порядок обновления и ограничения rollback описаны в [эксплуатационном runbook](../operations/README.md), а переменные подключения — в [справочнике конфигурации](../configuration/README.md).
 
 ## Residents
 
@@ -80,7 +80,7 @@ Rollback миграции удаляет таблицу и schema `controllers`,
 | `account_number` | `text` | NOT NULL, unique, хранится в канонической форме |
 | `created_at` | `timestamp with time zone` | NOT NULL, UTC |
 
-Миграция `AddAddresses` позднее добавляет обязательный `address_id` и индекс `ix_accounts_address_id`. Миграция `AddResidentCreation` заменяет прежний индекс Resident на уникальный `ux_accounts_resident_id`, фиксируя правило v1 «один Resident — один Account». Поля Balance, долга и переплаты отсутствуют до реализации утверждённой финансовой политики.
+Миграция `AddAddresses` позднее добавляет обязательный `address_id` и индекс `ix_accounts_address_id`. Миграция `AddResidentCreation` заменяет прежний индекс Resident на уникальный `ux_accounts_resident_id`, фиксируя правило v1 «один Resident — один Account». Финальная модель v1 также хранит `overpayment numeric(18,2)` с ограничением `overpayment >= 0`; задолженность вычисляется из Charges и PaymentAllocations.
 
 Rollback миграции удаляет таблицу и schema `accounts`, не затрагивая Identity, Residents или Controllers.
 

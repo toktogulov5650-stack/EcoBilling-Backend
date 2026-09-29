@@ -32,5 +32,9 @@ internal sealed class TariffConfiguration : IEntityTypeConfiguration<Tariff>
             .HasColumnName("created_at")
             .HasColumnType("timestamp with time zone")
             .IsRequired();
+
+        builder.HasIndex(tariff => tariff.Name)
+            .IsUnique()
+            .HasDatabaseName("ux_tariffs_name");
     }
 }

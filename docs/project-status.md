@@ -94,4 +94,4 @@
 
 Итого автоматизированных тестов: 551/551.
 
-Backend v1 является проверенным staging candidate. Production GO требует environment-specific evidence из [production readiness checklist](operations/production-readiness.md): secrets, TLS/ingress/trusted proxies, PostgreSQL role split, backup/restore, observability, сохранение release SBOM/immutable digest policy и migration rehearsal на реалистичной копии данных. Внешний Outbox transport и payment provider требуются только если соответствующие сценарии включаются.
+Repository-side backend v1 и production-hardening завершены и подтверждены зелёным CI. Backend является проверенным staging candidate. Production GO требует environment-specific evidence из [production readiness checklist](operations/production-readiness.md): secrets, TLS/ingress/trusted proxies, PostgreSQL role split, backup/restore, observability, сохранение release SBOM/immutable digest policy и migration rehearsal на реалистичной копии данных. Внешний Outbox transport и payment provider требуются только если соответствующие сценарии включаются.

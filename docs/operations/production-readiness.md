@@ -5,14 +5,14 @@
 ## 1. Release artifact
 
 - [ ] Выбран точный commit/tag.
-- [ ] CI для commit зелёный.
+- [x] CI для commit зелёный.
 - [ ] Container images собраны один раз и зафиксированы immutable digest.
-- [ ] NuGet audit выполнен.
+- [x] NuGet audit выполнен в CI restore gate.
 - [x] CI сканирует финальные `api`, `worker`, `migrations`, `postgres` через Trivy и блокирует исправимые CRITICAL/HIGH findings.
 - [ ] SBOM сохранён вместе с release metadata.
 - [x] Последний подтверждённый CI scan: 0 CRITICAL/HIGH findings с `ignore-unfixed=true` для всех четырёх images.
 
-Последнее подтверждение этих двух scan-пунктов: commit `ba31d7a8a19850c36883fc8a081279561e076e47`, GitHub Actions CI run 67. Immutable digest/SBOM release evidence остаётся отдельным production release шагом.
+Последнее подтверждение repository-owned release gates: commit `ba31d7a8a19850c36883fc8a081279561e076e47`, GitHub Actions CI run 67. Restore/build/tests/Compose/container builds/Trivy прошли успешно. Immutable digest/SBOM release evidence остаётся отдельным production release шагом.
 
 ## 2. Secrets
 

@@ -53,6 +53,23 @@ public sealed class UserAdministrationAuthorizationTests
         await AssertProblemCodeAsync(response, "auth.forbidden");
     }
 
+    [Fact]
+    public async Task RevokeAllSessions_AsDirectorWithEmptyUserId_ReturnsNotFoundWithoutDatabase()
+    {
+        await using var factory = CreateFactory();
+        using var client = factory.CreateClient(ClientOptions());
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            CreateAccessToken(UserRole.Director));
+
+        using var response = await client.PostAsync(
+            $"/api/v1/users/{Guid.Empty:D}/sessions/revoke-all",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        await AssertProblemCodeAsync(response, "identity.user_not_found");
+    }
+
     private static async Task AssertProblemCodeAsync(
         HttpResponseMessage response,
         string expectedCode)

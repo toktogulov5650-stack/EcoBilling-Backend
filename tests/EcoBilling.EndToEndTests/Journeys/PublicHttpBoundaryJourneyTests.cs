@@ -59,7 +59,6 @@ public sealed class PublicHttpBoundaryJourneyTests
             "/api/v1/tariffs/{tariffId:guid}/versions",
             "/api/v1/tariffs/{tariffId:guid}/versions/{versionId:guid}",
             "/api/v1/tariffs/{tariffId:guid}/versions/{versionId:guid}/end",
-            "/api/v1/users/{userId:guid}/sessions/revoke-all",
             "/api/v1/users/{userId:guid}/sessions/revoke-all"
         };
         var actualPublicRoutes = host.RoutePatterns

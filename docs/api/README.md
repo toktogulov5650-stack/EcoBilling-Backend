@@ -1,6 +1,6 @@
 # EcoBilling API v1
 
-Этот документ описывает HTTP-поверхность, реализованную в ветке `feature/complete-v1-backend`. Финальная схема ответов подтверждается OpenAPI и E2E после verification pass.
+Документ описывает HTTP-поверхность EcoBilling v1 в `master` и текущих production-readiness изменениях. OpenAPI/Swagger доступен только в `Development`.
 
 ## Общие правила
 
@@ -22,6 +22,14 @@
 | POST | `/api/v1/auth/setup-password` | Anonymous |
 
 Access token действует по конфигурации (v1 default 15 минут), refresh token — 30 дней. Refresh token хранится как hash, одноразово ротируется; replay отзывает token family.
+
+### Identity administration
+
+| Метод | Путь | Доступ |
+|---|---|---|
+| POST | `/api/v1/users/{userId}/sessions/revoke-all` | Director |
+
+Endpoint отзывает все ещё не отозванные refresh sessions указанного пользователя. Повтор безопасен, число реально отозванных sessions возвращается в response. Операция записывается в AuditLog; текущий access token пользователя остаётся валиден только до своего короткого срока истечения.
 
 ## Internal provisioning
 

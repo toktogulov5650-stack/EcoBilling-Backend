@@ -1,33 +1,39 @@
 # Матрица End-to-End покрытия
 
-E2E-тесты выполняют пользовательский или межсервисный путь через HTTP и настоящую PostgreSQL. Они не создают HTTP-контракты для функций, которых пока нет в production API.
+E2E-тесты выполняют пользовательский или межсервисный путь через настоящий ASP.NET Core HTTP pipeline и отдельную временную PostgreSQL. Эта матрица отличает наличие production-контракта от наличия отдельного E2E journey.
 
-| Сценарий из задания | Состояние | Проверка или причина ожидания |
+| Сценарий | Production-контракт | Автоматизированное покрытие |
 |---|---|---|
-| Вход жителя | Покрыто | E2E создаёт Resident директором и проверяет вход по нормализованному номеру лицевого счёта. |
-| Вход контроллера | Покрыто | E2E создаёт Controller, проверяет запрет login до password setup, замену тайны и успешный login. |
-| Вход директора | Покрыто | E2E provisioning завершается password setup и успешным login Director. |
-| Отказ при неверном пароле | Покрыто integration | HTTP/PostgreSQL тесты проверяют единый `401 auth.invalid_credentials` и persisted lockout. |
-| Запрет публичной регистрации | Покрыто | Endpoint inventory не содержит registration routes; HTTP-запрос регистрации получает RFC 7807 `404` с `request.not_found`. |
-| Создание жителя директором | Покрыто | Полный HTTP/PostgreSQL journey проверяет Director JWT, атомарное создание Identity/Profile/Address/Account, audit, replay и вход Resident. |
-| Сброс пароля жителя директором | Покрыто | E2E проверяет идемпотентный reset, отзыв старого refresh token, запрет старого пароля, вход с новым паролем и Audit без credentials. |
-| Создание контроллера директором | Покрыто | Полный HTTP/PostgreSQL journey проверяет Director JWT, атомарное создание, audit, replay и первичную смену пароля Controller. |
-| Житель не видит чужие данные | Ожидает auth/API | Нет пользовательских claims и HTTP endpoint просмотра счёта. |
-| Контроллер не видит неназначенного жителя | Ожидает назначения | Модель назначений и соответствующий HTTP API не утверждены. |
-| Внесение показания контроллером | Ожидает правила/API | Нет mutation-сценария; правила показаний остаются открытыми. |
-| Просмотр истории показаний | Ожидает API | Есть persistence-основа, но нет пользовательского query endpoint. |
-| Просмотр начислений | Ожидает правила/API | Нет утверждённой формулы и пользовательского query endpoint. |
-| Просмотр платежей | Ожидает API | Есть минимальный подтверждённый Payment, но нет пользовательского query endpoint. |
-| Внутреннее создание директора | Покрыто | Проверяются отдельная service authentication, полный HTTP/persistence путь, audit и отсутствие утечки initial credential. |
-| Идемпотентный повтор внутренней операции | Покрыто | Новый JWT с тем же `Idempotency-Key` возвращает исходные идентификаторы и не создаёт дубликаты. |
+| Вход Director | Реализован | E2E: provisioning → password setup → login. |
+| Вход Controller | Реализован | E2E: создание → обязательная замена initial credential → login. |
+| Вход Resident | Реализован | E2E: создание → login по Account number. |
+| Неверный пароль / lockout | Реализован | Integration HTTP/PostgreSQL. |
+| Запрет публичной регистрации | Реализован | E2E route inventory + RFC 7807 `404`. |
+| Создание Resident | Реализован | E2E + integration: Identity/Profile/Address/Account/Audit/idempotency. |
+| Сброс пароля Resident | Реализован | E2E + integration: revoke refresh sessions, старый пароль/refresh запрещены. |
+| Создание Controller | Реализован | E2E + integration: audit/idempotency/password setup. |
+| Resident видит только свои данные | Реализован | Ownership задаётся через JWT `sub` и self-service endpoints; integration/authorization tests. Отдельный multi-resident E2E journey ещё не выделен. |
+| Controller assignments | Реализован | Unit/integration/API authorization; отдельный полный assignment E2E journey следует поддерживать как регрессию. |
+| Controller worklist | Реализован | Unit/integration/read-model tests; endpoint доступен только Controller. |
+| Controller вносит Reading только по назначенному Address | Реализован | Persistence/resource authorization tests; рекомендуется отдельный сквозной E2E journey. |
+| История Readings | Реализована | Query/unit/integration; Resident self-service и Director management endpoints. |
+| Tariff / TariffVersion / Account assignment | Реализован | Unit/integration/persistence/API tests. |
+| Monthly Billing v1 | Реализован | Unit/integration с настоящей PostgreSQL; повтор периода идемпотентен. |
+| Payment / allocation / overpayment | Реализован | Unit/integration с настоящей PostgreSQL. |
+| Resident charges/payments/financial | Реализован | Self-service HTTP endpoints + integration/read-model tests. |
+| Административный revoke всех refresh sessions | Реализован | Unit + HTTP authorization/route coverage; persistence audit выполняется атомарно. |
+| Payment provider callback/refund/reconciliation | Не реализован | Ожидает выбор провайдера и контракт подписи. |
+| Внешний Outbox transport | Не реализован | Persistence/dispatcher реализованы; publisher зависит от выбранного transport. |
+| Billing периода через замену нескольких Meter | Намеренно блокируется | Возвращается явная ошибка до утверждения формулы. |
+| Пени, льготы и сложные перерасчёты | Не реализованы | Ожидают версионируемую business policy v2+. |
 
 ## Запуск
-
-Укажите административную строку подключения к PostgreSQL, пользователь которой может создавать и удалять временные базы:
 
 ```powershell
 $env:ECOBILLING_TEST_POSTGRES_CONNECTION = "Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=<local-test-password>"
 dotnet test tests/EcoBilling.EndToEndTests/EcoBilling.EndToEndTests.csproj --configuration Release
 ```
 
-GitHub Actions задаёт эту переменную автоматически для одноразового PostgreSQL service. Production credentials для E2E не используются.
+GitHub Actions задаёт административную строку только для одноразовой тестовой PostgreSQL. Production credentials для E2E не используются.
+
+При добавлении нового пользовательского mutation/query сценария матрица должна обновляться вместе с тестами. Наличие строки «Production-контракт реализован» не должно автоматически интерпретироваться как наличие отдельного E2E journey.

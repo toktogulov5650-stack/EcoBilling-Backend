@@ -29,7 +29,23 @@ builder.Services
         "Worker task RetryDelay cannot be negative.")
     .ValidateOnStart();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<WorkerTaskRunner>();
+builder.Services
+    .AddOptions<WorkerScheduleOptions>()
+    .Bind(builder.Configuration.GetSection(WorkerScheduleOptions.SectionName))
+    .Validate(
+        options => options.MonthlyBillingInterval > TimeSpan.Zero,
+        "Monthly billing interval must be positive.")
+    .Validate(
+        options => options.OutboxInterval > TimeSpan.Zero,
+        "Outbox interval must be positive.")
+    .Validate(
+        options => options.OutboxBatchSize is >= 1 and <= 1000,
+        "Outbox batch size must be between 1 and 1000.")
+    .ValidateOnStart();
+builder.Services.AddScoped<WorkerTaskRunner>();
+builder.Services.AddScoped<MonthlyBillingWorkerTask>();
+builder.Services.AddScoped<OutboxWorkerTask>();
+builder.Services.AddHostedService<ScheduledWorkerService>();
 
 var host = builder.Build();
 host.Run();

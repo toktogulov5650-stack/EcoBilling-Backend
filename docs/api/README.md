@@ -1,192 +1,160 @@
-# API
+# EcoBilling API v1
 
-## Текущая поверхность
+Этот документ описывает HTTP-поверхность, реализованную в ветке `feature/complete-v1-backend`. Финальная схема ответов подтверждается OpenAPI и E2E после verification pass.
 
-| Метод и путь | Доступ | Назначение |
+## Общие правила
+
+- Публичной регистрации нет.
+- Director и Controller входят по email, Resident — по Account number.
+- Ошибки возвращаются как RFC 7807 `application/problem+json` с `code` и `traceId`.
+- Клиент может передавать `X-Correlation-Id`.
+- Mutation-сценарии, где это требуется, используют идемпотентность и AuditLog.
+- Authentication endpoints защищены rate limiting.
+- OpenAPI/Swagger публикуется только в Development.
+
+## Authentication
+
+| Метод | Путь | Доступ |
 |---|---|---|
-| `POST /internal/v1/directors` | Отдельный service JWT | Первоначальное создание единственного директора округа. |
-| `POST /api/v1/auth/login` | Anonymous | Вход по email или номеру лицевого счёта и выпуск пары токенов. |
-| `POST /api/v1/auth/refresh` | Anonymous, refresh token в body | Одноразовая ротация refresh token и выпуск нового access token. |
-| `POST /api/v1/auth/revoke` | Anonymous, refresh token в body | Идемпотентный отзыв всей token family. |
-| `POST /api/v1/auth/setup-password` | Anonymous, начальная тайна в body | Однократная замена начальной тайны Director/Controller. |
-| `POST /api/v1/controllers` | Director access JWT | Идемпотентное создание Controller с начальной тайной. |
-| `POST /api/v1/residents` | Director access JWT | Идемпотентное атомарное создание Resident, Address и Account. |
-| `PUT /api/v1/residents/{residentId}/password` | Director access JWT | Идемпотентный сброс пароля Resident и отзыв refresh-сессий. |
-| `GET /health/live` | Anonymous | Liveness процесса без зависимости от PostgreSQL. |
-| `GET /health/ready` | Anonymous | Readiness процесса и PostgreSQL. |
-| `GET /health` | Anonymous | Совместимый alias readiness. |
+| POST | `/api/v1/auth/login` | Anonymous |
+| POST | `/api/v1/auth/refresh` | Anonymous |
+| POST | `/api/v1/auth/revoke` | Anonymous |
+| POST | `/api/v1/auth/setup-password` | Anonymous |
 
-Публичной регистрации нет. Неизвестный маршрут получает безопасный RFC 7807 `404` с кодом `request.not_found`.
+Access token действует по конфигурации (v1 default 15 минут), refresh token — 30 дней. Refresh token хранится как hash, одноразово ротируется; replay отзывает token family.
 
-## Пользовательская аутентификация
+## Internal provisioning
 
-`POST /api/v1/auth/login` принимает `loginType` со значением `email` или `accountNumber`, `login` и `password`. Успешный ответ содержит `Bearer` access token, его UTC-срок, одноразовый refresh token, срок refresh token и роль. Access token по умолчанию действует 15 минут, refresh token — 30 дней.
+| Метод | Путь | Доступ |
+|---|---|---|
+| POST | `/internal/v1/directors` | RS256 service JWT |
 
-Refresh token хранится только как SHA-256 hash. `POST /api/v1/auth/refresh` атомарно помечает предъявленную сессию использованной и создаёт замену в той же семье. Повтор уже использованного token отзывает всю семью, включая выданную замену. `POST /api/v1/auth/revoke` также отзывает семью и всегда идемпотентно возвращает `204`.
+Provisioning использует отдельный issuer/audience/scope, `kid`, `jti` replay protection и `Idempotency-Key`.
 
-Пять подряд неверных паролей блокируют account на 15 минут. Ответ остаётся одинаковым для неизвестного login, неправильного password и заблокированного account: `401 auth.invalid_credentials`.
+## Directors
 
-Director и Controller, созданные с начальной тайной, сначала вызывают `POST /api/v1/auth/setup-password`. Новый пароль содержит 12–256 символов и не может совпадать с начальной тайной. До успешной замены login возвращает `403 auth.password_setup_required`. Resident не использует self-service setup: его пароль устанавливает или сбрасывает Director.
+| Метод | Путь |
+|---|---|
+| GET | `/api/v1/directors/me/profile` |
 
-Access JWT подписывается HS256, содержит `kid`, `sub`, `jti`, `iat`, `exp` и `role`, проверяется по точным issuer/audience и не содержит refresh token или пароль. Raw access/refresh tokens и credentials не журналируются.
+## Controllers
 
-## Создание контроллера директором
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/controllers` | Director |
+| GET | `/api/v1/controllers/{controllerId}` | Director |
+| POST | `/api/v1/controllers` | Director |
+| GET | `/api/v1/controllers/{controllerId}/assignments` | Director |
+| POST | `/api/v1/controllers/{controllerId}/assignments` | Director |
+| DELETE | `/api/v1/controllers/{controllerId}/assignments/{assignmentId}` | Director |
+| GET | `/api/v1/controllers/me/profile` | Controller |
+| GET | `/api/v1/controllers/me/assignments` | Controller |
+| GET | `/api/v1/controllers/me/worklist` | Controller |
 
-```http
-POST /api/v1/controllers
-Authorization: Bearer <director-access-token>
-Idempotency-Key: <opaque-operation-key>
-X-Correlation-Id: <optional-trace-id>
-Content-Type: application/json
-```
+Controller может вводить показания только для Meter, чей Account связан с назначенным Controller Address.
 
-```json
-{
-  "fullName": "Grace Hopper",
-  "email": "controller@example.com",
-  "initialCredential": "<high-entropy-one-time-credential>"
-}
-```
+## Residents
 
-Успешный ответ `201 Created` содержит `controllerId`, `operationId` и `status: "created"`. Заголовок `Idempotency-Replayed` равен `false` для первого выполнения и `true` для повтора того же запроса. Повтор с тем же ключом и другим телом получает `409 controller.creation.idempotency_conflict`; существующий email — `409 controller.email_already_exists`.
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/residents` | Director |
+| GET | `/api/v1/residents/{residentId}` | Director |
+| POST | `/api/v1/residents` | Director |
+| PUT | `/api/v1/residents/{residentId}/password` | Director |
+| GET | `/api/v1/me/profile` | Resident |
+| GET | `/api/v1/me/account` | Resident |
+| GET | `/api/v1/me/meters` | Resident |
+| GET | `/api/v1/me/readings` | Resident |
+| GET | `/api/v1/me/charges` | Resident |
+| GET | `/api/v1/me/payments` | Resident |
+| GET | `/api/v1/me/financial` | Resident |
 
-Начальная тайна содержит 32–256 символов без пробелов, хешируется до записи и не возвращается. Созданный Controller обязан однократно заменить её через `POST /api/v1/auth/setup-password`; обычный login до замены возвращает `403 auth.password_setup_required`. Identity, профиль Controller, idempotency operation и audit создаются одной транзакцией.
+Resident self-service никогда не принимает чужой `residentId`/ `accountId`: ownership определяется по `sub` access token.
 
-## Создание жителя директором
+## Accounts and Addresses
 
-```http
-POST /api/v1/residents
-Authorization: Bearer <director-access-token>
-Idempotency-Key: <opaque-operation-key>
-X-Correlation-Id: <optional-trace-id>
-Content-Type: application/json
-```
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/accounts/by-number/{accountNumber}` | Director |
+| GET | `/api/v1/addresses/{addressId}` | Director |
 
-```json
-{
-  "fullName": "Ada Lovelace",
-  "accountNumber": "AB-000001",
-  "password": "<resident-password>",
-  "address": {
-    "locality": "Bishkek",
-    "street": "Chuy Avenue",
-    "house": "42",
-    "building": "2",
-    "apartment": "17"
-  }
-}
-```
+## Meters
 
-Успешный `201 Created` содержит `residentId`, `accountId`, `addressId`, `operationId` и `status: "created"`. `Idempotency-Replayed` показывает первое выполнение или безопасный повтор. Тот же ключ с другим запросом возвращает `409 resident.creation.idempotency_conflict`, существующий номер — `409 resident.account_number_already_exists`.
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/meters/{meterId}` | Director |
+| GET | `/api/v1/accounts/{accountId}/meters` | Director |
+| POST | `/api/v1/accounts/{accountId}/meters` | Director |
+| POST | `/api/v1/meters/{meterId}/replace` | Director |
 
-Identity роли Resident, профиль, Address, Account, operation и Audit записываются одной транзакцией. Номер Account одновременно является нормализованным логином Resident. Пароль содержит 12–256 символов, немедленно хешируется и не возвращается; Resident сразу входит с `loginType: "accountNumber"` и не использует self-service setup.
+Replacement сохраняет старый Meter как retired и создаёт новый Meter со ссылкой `ReplacesMeterId`; история не переписывается.
 
-## Сброс пароля жителя директором
+## Readings
 
-```http
-PUT /api/v1/residents/{residentId}/password
-Authorization: Bearer <director-access-token>
-Idempotency-Key: <opaque-operation-key>
-X-Correlation-Id: <optional-trace-id>
-Content-Type: application/json
-```
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/readings/{readingId}` | Director |
+| GET | `/api/v1/meters/{meterId}/readings` | Director |
+| POST | `/api/v1/meters/{meterId}/readings` | Director или назначенный Controller |
 
-```json
-{
-  "newPassword": "<new-resident-password>"
-}
-```
+Обычное показание не может уменьшаться. Backdated ввод Controller запрещён. Director может выполнять backdated/correction операции только с причиной. Correction создаёт новую запись и ссылку на superseded reading; исходная история остаётся неизменной.
 
-Успешный `200 OK` содержит `operationId` и `status: "reset"`; заголовок `Idempotency-Replayed` показывает безопасный повтор. Отсутствующий Resident возвращает `404 resident.not_found`, а повтор ключа с другим запросом — `409 resident.password_reset.idempotency_conflict`.
+## Tariffs
 
-Новый hash, снятие lockout, отзыв всех refresh-сессий, operation и Audit сохраняются одной транзакцией. Старый пароль и старые refresh tokens перестают работать. Уже выпущенный access JWT остаётся действительным максимум до своего настроенного срока (по умолчанию 15 минут), поскольку текущий access token является stateless.
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/tariffs` | Director |
+| POST | `/api/v1/tariffs` | Director |
+| GET | `/api/v1/tariffs/{tariffId}` | Director |
+| GET | `/api/v1/tariffs/{tariffId}/versions` | Director |
+| POST | `/api/v1/tariffs/{tariffId}/versions` | Director |
+| GET | `/api/v1/tariffs/{tariffId}/versions/{versionId}` | Director |
+| PUT | `/api/v1/tariffs/{tariffId}/versions/{versionId}/end` | Director |
+| GET | `/api/v1/accounts/{accountId}/tariff` | Director |
+| GET | `/api/v1/accounts/{accountId}/tariff-assignments` | Director |
+| POST | `/api/v1/accounts/{accountId}/tariff-assignments` | Director |
+| PUT | `/api/v1/accounts/{accountId}/tariff-assignments/{assignmentId}/end` | Director |
 
-## Внутреннее создание директора
+TariffVersion и Account assignment используют полуоткрытые периоды и не допускают overlap через mutation service.
 
-```http
-POST /internal/v1/directors
-Authorization: Bearer <service-jwt>
-Idempotency-Key: <opaque-operation-key>
-X-Correlation-Id: <optional-trace-id>
-Content-Type: application/json
-```
+## Billing
 
-```json
-{
-  "fullName": "Ada Lovelace",
-  "email": "director@example.com",
-  "initialCredential": "<high-entropy-one-time-credential>"
-}
-```
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/charges/{chargeId}` | Director |
+| GET | `/api/v1/accounts/{accountId}/charges` | Director |
+| POST | `/api/v1/accounts/{accountId}/billing/{year}/{month}` | Director |
 
-Успешный ответ имеет статус `201 Created`:
+v1: календарный месяц `Asia/Bishkek`, consumption = current accepted reading - previous accepted reading, amount = consumption × effective tariff rate, KGS, округление `AwayFromZero` до 2 знаков. Charge сохраняет reading IDs, TariffVersion и calculation version.
 
-```json
-{
-  "directorId": "00000000-0000-0000-0000-000000000000",
-  "operationId": "00000000-0000-0000-0000-000000000000",
-  "status": "created"
-}
-```
+Повтор того же Account/month возвращает существующий Charge. Если расчётный месяц пересекает replacement нескольких Meter, API возвращает явную ошибку вместо неподтверждённой формулы.
 
-Заголовок `Idempotency-Replayed` равен `false` для создания и `true` для успешного повтора. `Idempotency-Key` обязателен, регистрозависим и имеет длину не более 200 символов. Повтор должен использовать новый JWT и прежний `Idempotency-Key`.
+## Payments
 
-JWT принимается только с RS256 и обязан содержать:
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/payments/{paymentId}` | Director |
+| GET | `/api/v1/accounts/{accountId}/payments` | Director |
+| GET | `/api/v1/accounts/{accountId}/financial` | Director |
+| POST | `/api/v1/accounts/{accountId}/payments` | Director |
 
-- известный `kid`, соответствующий настроенному публичному RSA-ключу;
-- точные `iss` и `aud`;
-- `iat` и `exp`, причём `exp` позже `iat`, а срок не превышает настроенный максимум;
-- уникальный `jti`;
-- scope `ecobilling.directors.provision`.
+Manual payment требует `Idempotency-Key`. Оплата распределяется на старейшие непогашенные Charges через `PaymentAllocation`; остаток записывается в `Account.Overpayment` и применяется к последующим Charges.
 
-Максимальная жизнь токена по умолчанию — две минуты, clock skew — 30 секунд. Каждый `jti` атомарно принимается только один раз и сохраняется до `exp + clock skew`.
+Внешний payment provider/callback/refund не симулируется до выбора провайдера.
 
-Начальная учётная тайна должна содержать 32–256 символов без пробельных символов. Она хешируется и не возвращается. Директор остаётся в состоянии обязательной первичной установки пароля; обычный вход до её завершения запрещён.
+## Reports
 
-Ошибки используют `application/problem+json` с расширениями `code`, `traceId` и, для ошибок проверки, `validationErrors`. Основные коды:
+| Метод | Путь | Доступ |
+|---|---|---|
+| GET | `/api/v1/reports/operational-summary` | Director |
+| GET | `/api/v1/reports/financial-summary` | Director |
 
-- `service.unauthorized` — JWT отсутствует, неверен или уже использован;
-- `operation.invalid_idempotency_key` — заголовок отсутствует или некорректен;
-- `operation.idempotency_conflict` — ключ уже связан с другим запросом;
-- `director.already_exists` — директор или email уже существует;
-- `director.invalid_full_name`, `auth.invalid_login`, `director.invalid_initial_credential` — неверные поля запроса.
+Financial summary включает charges, payments, outstanding debt, overpayment, consumption и показатели Controller.
 
-Открытая начальная тайна, JWT, закрытый ключ Control и HMAC-ключ fingerprint не должны попадать в логи, telemetry или committed configuration.
+## Health
 
-## Ошибки и корреляция
+- `GET /health/live`
+- `GET /health/ready`
+- `GET /health`
 
-Ошибки имеют content type `application/problem+json` и стандартные поля RFC 7807. Расширение `code` предназначено для машинной обработки, `traceId` совпадает с принятым correlation ID, а `validationErrors` присутствует для ошибок проверки.
-
-```json
-{
-  "title": "Validation failed",
-  "status": 400,
-  "detail": "The request is invalid.",
-  "instance": "/internal/v1/directors",
-  "code": "validation.failed",
-  "traceId": "control-operation-42",
-  "validationErrors": {
-    "request": ["The request body is invalid."]
-  }
-}
-```
-
-Клиент может передать `X-Correlation-Id` длиной до 128 символов без управляющих символов. Некорректное значение не отражается: сервер использует безопасный собственный идентификатор. Итоговый идентификатор возвращается в заголовке `X-Correlation-Id`, ProblemDetails и audit записи provisioning.
-
-## Техническое состояние
-
-```http
-GET /health/live
-GET /health/ready
-GET /health
-```
-
-`/health/live` подтверждает работу процесса и не зависит от PostgreSQL. `/health/ready` и совместимый `/health` возвращают `200 OK`, только когда PostgreSQL доступна; иначе возвращается `503 Service Unavailable`.
-
-Ответ содержит `status`, общую длительность и массив `checks` с именем, статусом и длительностью каждой проверки. Исключения, строка подключения и иные внутренние детали не возвращаются. Эти endpoints не требуют аутентификации и исключены из OpenAPI.
-
-## OpenAPI
-
-В окружении `Development` интерактивный Swagger UI доступен по адресу `GET /swagger`, а JSON-контракт — как `GET /swagger/v1/swagger.json`. Сохранён и нативный документ `GET /openapi/v1.json`. Swagger поддерживает JWT Bearer через кнопку `Authorize`: используйте access token, возвращённый `POST /api/v1/auth/login`.
-
-В `Testing` и `Production` Swagger UI и OpenAPI endpoints не публикуются. Health endpoints исключены из документа; внутренний provisioning остаётся помеченным тегом `Internal` и не становится публичным контрактом из-за наличия в OpenAPI.
+Readiness включает PostgreSQL, liveness не зависит от базы данных.

@@ -147,10 +147,7 @@ public sealed class BillingCalculationRepository(
                 BillingCalculationPersistenceOutcome.TariffAssignmentNotFound);
         }
 
-        if (tariffAssignments.Count != 1 ||
-            tariffAssignments[0].EffectiveFrom > periodStart ||
-            (tariffAssignments[0].EffectiveTo is not null &&
-             tariffAssignments[0].EffectiveTo.Value < periodEnd))
+        if (tariffAssignments.Count != 1)
         {
             await transaction.CommitAsync(cancellationToken);
             return new BillingCalculationPersistenceResult(
@@ -158,6 +155,15 @@ public sealed class BillingCalculationRepository(
         }
 
         var tariffAssignment = tariffAssignments[0];
+        var assignmentEffectiveTo = tariffAssignment.EffectiveTo;
+        if (tariffAssignment.EffectiveFrom > periodStart ||
+            (assignmentEffectiveTo.HasValue &&
+             assignmentEffectiveTo.Value < periodEnd))
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new BillingCalculationPersistenceResult(
+                BillingCalculationPersistenceOutcome.TariffPeriodChangeRequiresPolicy);
+        }
 
         var tariffVersions = await dbContext.TariffVersions
             .AsNoTracking()
@@ -177,10 +183,7 @@ public sealed class BillingCalculationRepository(
                 BillingCalculationPersistenceOutcome.TariffVersionNotFound);
         }
 
-        if (tariffVersions.Count != 1 ||
-            tariffVersions[0].EffectiveFrom > periodStart ||
-            (tariffVersions[0].EffectiveTo is not null &&
-             tariffVersions[0].EffectiveTo.Value < periodEnd))
+        if (tariffVersions.Count != 1)
         {
             await transaction.CommitAsync(cancellationToken);
             return new BillingCalculationPersistenceResult(
@@ -188,6 +191,15 @@ public sealed class BillingCalculationRepository(
         }
 
         var tariffVersion = tariffVersions[0];
+        var versionEffectiveTo = tariffVersion.EffectiveTo;
+        if (tariffVersion.EffectiveFrom > periodStart ||
+            (versionEffectiveTo.HasValue &&
+             versionEffectiveTo.Value < periodEnd))
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return new BillingCalculationPersistenceResult(
+                BillingCalculationPersistenceOutcome.TariffPeriodChangeRequiresPolicy);
+        }
 
         var amount = Math.Round(
             consumption * tariffVersion.Rate.Value,

@@ -87,14 +87,15 @@ dotnet test EcoBilling.slnx --configuration Release --no-build
 
 Без `ECOBILLING_TEST_POSTGRES_CONNECTION` тесты, требующие PostgreSQL, пропускаются. Полный локальный PostgreSQL-прогон описан в [docs/testing/README.md](docs/testing/README.md).
 
-Последний зафиксированный полный verification pass до production-readiness hardening:
+Последний полный verification pass production-readiness ветки:
 
 - Architecture: 34/34;
 - Unit: 307/307;
 - PostgreSQL integration: 206/206;
 - E2E: 4/4;
 - Docker Compose validation: passed;
-- images `api`, `worker`, `migrations`: built successfully.
+- images `api`, `worker`, `migrations`, `postgres`: built successfully;
+- Trivy CRITICAL/HIGH scan: 0 findings для всех четырёх финальных images.
 
 Production-readiness изменения подтверждены повторным зелёным CI.
 

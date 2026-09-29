@@ -29,7 +29,7 @@ Backend подходит для development и staging. Для production ста
 
 ## Последний подтверждённый CI verification
 
-На текущем head production-readiness ветки `9c93eafc3f1fe1329f368b8885beeeadd30b9b7c` GitHub Actions CI run 73 завершился успешно: Architecture 34/34, Unit 307/307, PostgreSQL Integration 206/206, E2E 4/4. Docker Compose validation и сборка `api`, `worker`, `migrations`, `postgres` прошли успешно. Trivy scan с `CRITICAL,HIGH` и `ignore-unfixed=true` показал 0 findings для всех четырёх финальных images.
+На commit `9c93eafc3f1fe1329f368b8885beeeadd30b9b7c` GitHub Actions CI run 73 завершился успешно: Architecture 34/34, Unit 307/307, PostgreSQL Integration 206/206, E2E 4/4. Docker Compose validation и сборка `api`, `worker`, `migrations`, `postgres` прошли успешно. Trivy scan с `CRITICAL,HIGH` и `ignore-unfixed=true` показал 0 findings для всех четырёх финальных images.
 
 ## Production блокеры
 

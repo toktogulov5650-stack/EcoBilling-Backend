@@ -45,9 +45,30 @@ builder.Services
 builder.Services.AddScoped<WorkerTaskRunner>();
 builder.Services.AddScoped<MonthlyBillingWorkerTask>();
 builder.Services.AddScoped<OutboxWorkerTask>();
-builder.Services.AddHostedService<ScheduledWorkerService>();
+
+var oneShotTaskName = WorkerTaskSelection.GetTaskName(args);
+if (oneShotTaskName is null)
+{
+    builder.Services.AddHostedService<ScheduledWorkerService>();
+}
+else
+{
+    builder.Services.AddScoped<OneShotWorkerTaskRunner>();
+}
 
 var host = builder.Build();
-host.Run();
+
+if (oneShotTaskName is null)
+{
+    host.Run();
+}
+else
+{
+    await host.StartAsync();
+    await using var scope = host.Services.CreateAsyncScope();
+    var runner = scope.ServiceProvider.GetRequiredService<OneShotWorkerTaskRunner>();
+    await runner.RunAsync(oneShotTaskName, CancellationToken.None);
+    await host.StopAsync();
+}
 
 public partial class Program;

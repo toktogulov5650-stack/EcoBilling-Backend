@@ -1,5 +1,9 @@
 # Развёртывание
 
+Production-контур для Google Cloud Run и Neon описан отдельно в
+[`deploy/cloudrun/README.md`](../../deploy/cloudrun/README.md). Он использует Cloud Run
+service для API и завершающиеся Cloud Run jobs для миграций и фоновых задач.
+
 Каждый округ получает отдельные экземпляры API, Worker и PostgreSQL. Файлы локального контейнерного запуска находятся в `deploy`.
 
 ## Docker Compose

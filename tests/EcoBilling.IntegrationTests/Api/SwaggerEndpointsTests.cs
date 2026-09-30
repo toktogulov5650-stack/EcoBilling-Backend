@@ -72,12 +72,31 @@ public sealed class SwaggerEndpointsTests
         Assert.Equal(HttpStatusCode.NotFound, nativeContractResponse.StatusCode);
     }
 
-    private static SwaggerApiFactory CreateFactory(string environment)
+    [Fact]
+    public async Task Swagger_InProduction_WhenEnabled_ExposesUiAndContract()
+    {
+        await using var factory = CreateFactory(
+            "Production",
+            swaggerEnabled: true);
+        using var client = factory.CreateClient(ClientOptions());
+
+        using var uiResponse = await client.GetAsync("/swagger/index.html");
+        using var contractResponse = await client.GetAsync(
+            "/swagger/v1/swagger.json");
+
+        Assert.Equal(HttpStatusCode.OK, uiResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, contractResponse.StatusCode);
+    }
+
+    private static SwaggerApiFactory CreateFactory(
+        string environment,
+        bool swaggerEnabled = false)
     {
         using var rsa = RSA.Create(2048);
         return new SwaggerApiFactory(
             environment,
-            rsa.ExportSubjectPublicKeyInfoPem());
+            rsa.ExportSubjectPublicKeyInfoPem(),
+            swaggerEnabled);
     }
 
     private static WebApplicationFactoryClientOptions ClientOptions() =>
@@ -89,12 +108,16 @@ public sealed class SwaggerEndpointsTests
 
     private sealed class SwaggerApiFactory(
         string environment,
-        string publicKeyPem)
+        string publicKeyPem,
+        bool swaggerEnabled)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment(environment);
+            builder.UseSetting(
+                "Swagger:Enabled",
+                swaggerEnabled.ToString());
             builder.UseSetting(
                 "ConnectionStrings:EcoBilling",
                 "Host=127.0.0.1;Port=1;Database=unavailable;Username=swagger;Password=swagger-test;Timeout=1;Command Timeout=1;Pooling=false");

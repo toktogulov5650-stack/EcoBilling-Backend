@@ -3,6 +3,7 @@ ARG DOTNET_ASPNET_IMAGE=mcr.microsoft.com/dotnet/aspnet:10.0.12
 
 FROM ${DOTNET_SDK_IMAGE} AS restore
 WORKDIR /src
+ENV NUGET_PACKAGES=/src/.nuget/packages
 COPY Directory.Build.props Directory.Packages.props global.json ./
 COPY .config/dotnet-tools.json .config/dotnet-tools.json
 COPY src/EcoBilling.Api/EcoBilling.Api.csproj src/EcoBilling.Api/

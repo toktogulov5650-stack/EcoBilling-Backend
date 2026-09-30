@@ -16,6 +16,10 @@ public sealed class DockerDeploymentTests
         Assert.Contains("runtime:10.0.12", workerDockerfile, StringComparison.Ordinal);
         Assert.Contains("USER $APP_UID", apiDockerfile, StringComparison.Ordinal);
         Assert.Contains("USER $APP_UID", workerDockerfile, StringComparison.Ordinal);
+        Assert.Contains(
+            "NUGET_PACKAGES=/src/.nuget/packages",
+            apiDockerfile,
+            StringComparison.Ordinal);
         Assert.Contains("HEALTHCHECK", apiDockerfile, StringComparison.Ordinal);
         Assert.Contains("HEALTHCHECK", workerDockerfile, StringComparison.Ordinal);
         Assert.Contains("STOPSIGNAL SIGTERM", apiDockerfile, StringComparison.Ordinal);

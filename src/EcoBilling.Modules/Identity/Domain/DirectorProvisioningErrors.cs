@@ -9,9 +9,9 @@ public static class DirectorProvisioningErrors
         "The director full name is invalid.",
         ErrorType.Validation);
 
-    public static Error InvalidInitialCredential { get; } = new(
-        "director.invalid_initial_credential",
-        "The initial director credential is invalid.",
+    public static Error InvalidPassword { get; } = new(
+        "director.invalid_password",
+        "The director password is invalid.",
         ErrorType.Validation);
 
     public static Error IdentityMustHaveDirectorRole { get; } = new(
@@ -38,4 +38,9 @@ public static class DirectorProvisioningErrors
         "director.already_exists",
         "A director or the requested director email already exists.",
         ErrorType.Conflict);
+
+    public static Error DirectorNotFound { get; } = new(
+        "director.not_found",
+        "The director was not found.",
+        ErrorType.NotFound);
 }

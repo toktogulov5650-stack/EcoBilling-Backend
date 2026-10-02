@@ -63,6 +63,7 @@ public static class DependencyInjection
                 timeout: TimeSpan.FromSeconds(5));
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
         services.AddScoped<IDirectorProvisioningRepository, DirectorProvisioningRepository>();
+        services.AddScoped<IDirectorPasswordResetRepository, DirectorPasswordResetRepository>();
         services.AddScoped<IRefreshSessionRepository, RefreshSessionRepository>();
         services.AddScoped<IInternalServiceTokenReplayStore, InternalServiceTokenReplayStore>();
         services.AddScoped<IResidentRepository, ResidentRepository>();
@@ -106,6 +107,8 @@ public static class DependencyInjection
 
         services.AddSingleton<IDirectorProvisioningRequestFingerprinter>(
             new DirectorProvisioningRequestFingerprinter(requestFingerprintKey));
+        services.AddSingleton<IDirectorPasswordResetRequestFingerprinter>(
+            new DirectorPasswordResetRequestFingerprinter(requestFingerprintKey));
         services.AddSingleton<IControllerCreationRequestFingerprinter>(
             new ControllerCreationRequestFingerprinter(requestFingerprintKey));
         services.AddSingleton<IResidentCreationRequestFingerprinter>(

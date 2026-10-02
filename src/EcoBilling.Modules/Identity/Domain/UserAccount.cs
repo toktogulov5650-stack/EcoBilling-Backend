@@ -139,10 +139,10 @@ public sealed class UserAccount
 
     public void CompletePasswordSetup(string? passwordHash)
     {
-        if (!RequiresPasswordChange || Role is UserRole.Resident)
+        if (!RequiresPasswordChange || Role is not UserRole.Controller)
         {
             throw new InvalidOperationException(
-                "Password setup is available only for staff accounts that require a password change.");
+                "Password setup is available only for controllers that require a password change.");
         }
 
         ReplacePasswordHash(passwordHash);
@@ -156,6 +156,19 @@ public sealed class UserAccount
         {
             throw new InvalidOperationException(
                 "Only a Resident password can be reset through this operation.");
+        }
+
+        ReplacePasswordHash(passwordHash);
+        RequiresPasswordChange = false;
+        RecordSuccessfulLogin();
+    }
+
+    public void ResetDirectorPassword(string? passwordHash)
+    {
+        if (Role is not UserRole.Director)
+        {
+            throw new InvalidOperationException(
+                "Only a Director password can be reset through this operation.");
         }
 
         ReplacePasswordHash(passwordHash);

@@ -105,7 +105,7 @@ Production-readiness изменения подтверждены повторн�
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/revoke`
-- `POST /api/v1/auth/setup-password`
+- `POST /api/v1/auth/setup-password` — только первичная установка пароля Controller; Director получает пароль от системного администратора.
 - `POST /api/v1/users/{userId}/sessions/revoke-all` — Director-only administrative revoke.
 
 ### Director / management

@@ -19,7 +19,7 @@
 | POST | `/api/v1/auth/login` | Anonymous |
 | POST | `/api/v1/auth/refresh` | Anonymous |
 | POST | `/api/v1/auth/revoke` | Anonymous |
-| POST | `/api/v1/auth/setup-password` | Anonymous |
+| POST | `/api/v1/auth/setup-password` | Anonymous, только первичная установка пароля Controller |
 
 Access token действует по конфигурации (v1 default 15 минут), refresh token — 30 дней. Refresh token хранится как hash, одноразово ротируется; replay отзывает token family.
 
@@ -36,6 +36,12 @@ Endpoint отзывает все ещё не отозванные refresh sessio
 | Метод | Путь | Доступ |
 |---|---|---|
 | POST | `/internal/v1/directors` | RS256 service JWT |
+| POST | `/internal/v1/directors/reset-password` | RS256 service JWT |
+
+Обе операции выполняет системный администратор через Control. Создание принимает
+`fullName`, `email`, `password`; обновление пароля принимает `email`, `newPassword`.
+Director самостоятельно пароль не устанавливает и не меняет. При обновлении пароля
+все активные refresh sessions директора отзываются.
 
 Provisioning использует отдельный issuer/audience/scope, `kid`, `jti` replay protection и `Idempotency-Key`.
 

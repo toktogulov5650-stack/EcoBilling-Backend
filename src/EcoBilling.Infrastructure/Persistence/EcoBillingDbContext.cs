@@ -24,6 +24,9 @@ public sealed class EcoBillingDbContext(DbContextOptions<EcoBillingDbContext> op
     public DbSet<DirectorProvisioningOperation> DirectorProvisioningOperations =>
         Set<DirectorProvisioningOperation>();
 
+    public DbSet<DirectorPasswordResetOperation> DirectorPasswordResetOperations =>
+        Set<DirectorPasswordResetOperation>();
+
     public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();
 
     public DbSet<Resident> Residents => Set<Resident>();

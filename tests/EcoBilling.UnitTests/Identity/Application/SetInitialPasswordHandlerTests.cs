@@ -14,9 +14,9 @@ public sealed class SetInitialPasswordHandlerTests
         new(2026, 9, 28, 8, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Handle_ReplacesInitialCredentialForStaffAccount()
+    public async Task Handle_ReplacesInitialCredentialForController()
     {
-        var account = CreateAccount(UserRole.Director, requiresPasswordChange: true);
+        var account = CreateAccount(UserRole.Controller, requiresPasswordChange: true);
         var repository = new RecordingRepository(account);
         var handler = CreateHandler(repository);
 

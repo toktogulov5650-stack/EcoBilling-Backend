@@ -1,5 +1,6 @@
 using EcoBilling.Modules.Identity.Application.Abstractions;
 using EcoBilling.Modules.Identity.Application.ProvisionDirector;
+using EcoBilling.Modules.Identity.Application.PasswordSetup;
 using EcoBilling.Modules.Identity.Domain;
 
 namespace EcoBilling.UnitTests.Identity.Application;
@@ -29,7 +30,7 @@ public sealed class ProvisionDirectorHandlerTests
         Assert.NotNull(repository.UserAccount);
         Assert.Equal(UserRole.Director, repository.UserAccount.Role);
         Assert.Equal("DIRECTOR@EXAMPLE.COM", repository.UserAccount.LoginIdentity.NormalizedValue);
-        Assert.True(repository.UserAccount.RequiresPasswordChange);
+        Assert.False(repository.UserAccount.RequiresPasswordChange);
         Assert.Equal("stored-initial-credential-hash", repository.UserAccount.PasswordHash);
         Assert.Equal(UtcNow, repository.UserAccount.CreatedAt);
         Assert.NotNull(repository.Director);
@@ -115,8 +116,7 @@ public sealed class ProvisionDirectorHandlerTests
 
     [Theory]
     [InlineData("short")]
-    [InlineData("credential containing spaces 1234567890")]
-    public async Task Handle_RejectsInvalidInitialCredential(string credential)
+    public async Task Handle_RejectsInvalidPassword(string credential)
     {
         var repository = new RecordingRepository(
             DirectorProvisioningPersistenceOutcome.Created);
@@ -133,7 +133,7 @@ public sealed class ProvisionDirectorHandlerTests
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal(DirectorProvisioningErrors.InvalidInitialCredential, result.Error);
+        Assert.Equal(DirectorProvisioningErrors.InvalidPassword, result.Error);
         Assert.Equal(0, repository.CallCount);
     }
 
@@ -169,6 +169,7 @@ public sealed class ProvisionDirectorHandlerTests
             repository,
             new StubRequestFingerprinter(),
             passwordHasher,
+            PasswordPolicy.Default,
             new FixedTimeProvider(UtcNow));
 
     private sealed class RecordingRepository(

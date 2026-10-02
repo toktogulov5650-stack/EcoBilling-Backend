@@ -78,7 +78,7 @@ public sealed class SetInitialPasswordHandler
             return Result.Failure(IdentityErrors.InvalidCredentials);
         }
 
-        if (!account.RequiresPasswordChange || account.Role is UserRole.Resident)
+        if (!account.RequiresPasswordChange || account.Role is not UserRole.Controller)
         {
             return Result.Failure(IdentityErrors.PasswordSetupNotAvailable);
         }

@@ -1,5 +1,5 @@
 using EcoBilling.Modules.Identity.Application.Abstractions;
-using EcoBilling.Modules.Identity.Application.Credentials;
+using EcoBilling.Modules.Identity.Application.PasswordSetup;
 using EcoBilling.Modules.Identity.Domain;
 using EcoBilling.SharedKernel.Results;
 
@@ -10,12 +10,14 @@ public sealed class ProvisionDirectorHandler
     private readonly IDirectorProvisioningRepository repository;
     private readonly IDirectorProvisioningRequestFingerprinter requestFingerprinter;
     private readonly IPasswordHasher passwordHasher;
+    private readonly PasswordPolicy passwordPolicy;
     private readonly TimeProvider timeProvider;
 
     public ProvisionDirectorHandler(
         IDirectorProvisioningRepository repository,
         IDirectorProvisioningRequestFingerprinter requestFingerprinter,
         IPasswordHasher passwordHasher,
+        PasswordPolicy passwordPolicy,
         TimeProvider timeProvider)
     {
         this.repository = repository
@@ -24,6 +26,8 @@ public sealed class ProvisionDirectorHandler
             ?? throw new ArgumentNullException(nameof(requestFingerprinter));
         this.passwordHasher = passwordHasher
             ?? throw new ArgumentNullException(nameof(passwordHasher));
+        this.passwordPolicy = passwordPolicy
+            ?? throw new ArgumentNullException(nameof(passwordPolicy));
         this.timeProvider = timeProvider
             ?? throw new ArgumentNullException(nameof(timeProvider));
     }
@@ -44,10 +48,10 @@ public sealed class ProvisionDirectorHandler
                 DirectorProvisioningErrors.InvalidIdempotencyKey);
         }
 
-        if (!InitialCredentialPolicy.IsValid(command.InitialCredential))
+        if (!passwordPolicy.IsValid(command.InitialCredential))
         {
             return Result<ProvisionDirectorResult>.Failure(
-                DirectorProvisioningErrors.InvalidInitialCredential);
+                DirectorProvisioningErrors.InvalidPassword);
         }
 
         var loginIdentity = LoginIdentity.Create(LoginType.Email, command.Email);
@@ -63,7 +67,7 @@ public sealed class ProvisionDirectorHandler
             passwordHasher.Hash(command.InitialCredential!),
             UserRole.Director,
             createdAt,
-            requiresPasswordChange: true);
+            requiresPasswordChange: false);
         if (userAccount.IsFailure)
         {
             return Result<ProvisionDirectorResult>.Failure(userAccount.Error);

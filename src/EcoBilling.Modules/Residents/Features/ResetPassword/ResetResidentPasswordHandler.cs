@@ -1,5 +1,4 @@
 using EcoBilling.Modules.Identity.Application.Abstractions;
-using EcoBilling.Modules.Identity.Application.PasswordSetup;
 using EcoBilling.Modules.Residents.Domain;
 using EcoBilling.Modules.Residents.Features.Abstractions;
 using EcoBilling.SharedKernel.Results;
@@ -11,14 +10,12 @@ public sealed class ResetResidentPasswordHandler
     private readonly IResidentPasswordResetRepository repository;
     private readonly IResidentPasswordResetRequestFingerprinter requestFingerprinter;
     private readonly IPasswordHasher passwordHasher;
-    private readonly PasswordPolicy passwordPolicy;
     private readonly TimeProvider timeProvider;
 
     public ResetResidentPasswordHandler(
         IResidentPasswordResetRepository repository,
         IResidentPasswordResetRequestFingerprinter requestFingerprinter,
         IPasswordHasher passwordHasher,
-        PasswordPolicy passwordPolicy,
         TimeProvider timeProvider)
     {
         this.repository = repository
@@ -27,8 +24,6 @@ public sealed class ResetResidentPasswordHandler
             ?? throw new ArgumentNullException(nameof(requestFingerprinter));
         this.passwordHasher = passwordHasher
             ?? throw new ArgumentNullException(nameof(passwordHasher));
-        this.passwordPolicy = passwordPolicy
-            ?? throw new ArgumentNullException(nameof(passwordPolicy));
         this.timeProvider = timeProvider
             ?? throw new ArgumentNullException(nameof(timeProvider));
     }
@@ -49,7 +44,7 @@ public sealed class ResetResidentPasswordHandler
                 ResidentErrors.InvalidPasswordResetIdempotencyKey);
         }
 
-        if (!passwordPolicy.IsValid(command.NewPassword))
+        if (!ResidentPasswordPolicy.IsValid(command.NewPassword))
         {
             return Result<ResetResidentPasswordResult>.Failure(
                 ResidentErrors.InvalidPassword);

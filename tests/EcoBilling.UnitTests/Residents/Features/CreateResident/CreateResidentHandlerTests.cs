@@ -1,6 +1,5 @@
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Identity.Application.Abstractions;
-using EcoBilling.Modules.Identity.Application.PasswordSetup;
 using EcoBilling.Modules.Identity.Domain;
 using EcoBilling.Modules.Residents.Domain;
 using EcoBilling.Modules.Residents.Features.Abstractions;
@@ -49,6 +48,31 @@ public sealed class CreateResidentHandlerTests
         Assert.Equal(repository.Address.Id, repository.Operation.AddressId);
         Assert.Equal("director-user-id", repository.ActorId);
         Assert.Equal("trace-id", repository.CorrelationId);
+    }
+
+    [Fact]
+    public async Task Handle_AcceptsEightCharacterPassword()
+    {
+        var handler = CreateHandler(
+            new RecordingRepository(ResidentCreationPersistenceOutcome.Created),
+            new RecordingPasswordHasher());
+
+        var result = await handler.Handle(
+            new CreateResidentCommand(
+                "create-resident-eight-character-password",
+                "Ada Lovelace",
+                "AB-000002",
+                "pass1234",
+                "Bishkek",
+                "Chuy Avenue",
+                "42",
+                null,
+                null,
+                "director-user-id",
+                "trace-id"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
     }
 
     [Fact]
@@ -178,7 +202,6 @@ public sealed class CreateResidentHandlerTests
             repository,
             new StubFingerprinter(),
             passwordHasher,
-            PasswordPolicy.Default,
             new FixedTimeProvider(UtcNow));
 
     private sealed class RecordingRepository(

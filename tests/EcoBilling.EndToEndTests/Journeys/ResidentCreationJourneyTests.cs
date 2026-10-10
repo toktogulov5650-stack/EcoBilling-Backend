@@ -226,12 +226,7 @@ public sealed class ResidentCreationJourneyTests
                     "Ada Lovelace",
                     AccountNumber,
                     ResidentPassword,
-                    new CreateResidentAddressRequest(
-                        "Bishkek",
-                        "Chuy Avenue",
-                        "42",
-                        "2",
-                        "17")))
+                    "Bishkek, Chuy Avenue, 42"))
         };
         request.Headers.Authorization = new AuthenticationHeaderValue(
             "Bearer",

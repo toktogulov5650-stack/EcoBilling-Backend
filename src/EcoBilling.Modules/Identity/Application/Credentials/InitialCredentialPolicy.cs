@@ -2,7 +2,7 @@ namespace EcoBilling.Modules.Identity.Application.Credentials;
 
 public static class InitialCredentialPolicy
 {
-    public const int MinimumLength = 32;
+    public const int MinimumLength = 12;
     public const int MaximumLength = 256;
 
     public static bool IsValid(string? credential) =>

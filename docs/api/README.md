@@ -81,7 +81,13 @@ Controller может вводить показания только для Mete
 | GET | `/api/v1/me/readings` | Resident |
 | GET | `/api/v1/me/charges` | Resident |
 | GET | `/api/v1/me/payments` | Resident |
+
 | GET | `/api/v1/me/financial` | Resident |
+
+`POST /api/v1/residents` принимает `fullName`, `accountNumber`, `password` и `address`.
+Адрес поддерживает прежний объект (`locality`, `street`, `house`, необязательные `building`, `apartment`) и непустую строку.
+Строка сохраняется целиком в `locality`; `street` и `house` получают `"-"`, поскольку текущая модель БД требует эти поля. Ответы продолжают возвращать структурированный адрес.
+Для новых клиентов предпочтителен объект: он сохраняет город, улицу и дом отдельно. Миграция БД не требуется.
 
 Resident self-service никогда не принимает чужой `residentId`/ `accountId`: ownership определяется по `sub` access token.
 

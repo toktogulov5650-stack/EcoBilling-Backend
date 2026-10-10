@@ -148,12 +148,7 @@ public sealed class ResidentManagementAuthorizationTests
             "Ada Lovelace",
             "AB-000001",
             "resident-password-0123456789",
-            new CreateResidentAddressRequest(
-                "Bishkek",
-                "Chuy Avenue",
-                "42",
-                "2",
-                "17"));
+            "Bishkek, Chuy Avenue, 42");
 
     private static ResetResidentPasswordRequest ValidResetRequest() =>
         new("replacement-resident-password-2026!");

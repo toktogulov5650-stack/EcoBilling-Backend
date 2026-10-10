@@ -48,6 +48,26 @@ public sealed class CreateControllerHandlerTests
     }
 
     [Fact]
+    public async Task Handle_AcceptsTwelveCharacterInitialCredential()
+    {
+        var handler = CreateHandler(
+            new RecordingRepository(ControllerCreationPersistenceOutcome.Created),
+            new RecordingPasswordHasher());
+
+        var result = await handler.Handle(
+            new CreateControllerCommand(
+                "create-controller-twelve-character-password",
+                "Grace Hopper",
+                "controller-12@example.com",
+                "control12345",
+                "director-user-id",
+                "trace-id"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public async Task Handle_WhenRequestIsReplayed_ReturnsStoredIdentifiers()
     {
         var storedControllerId = new ControllerId(Guid.NewGuid());

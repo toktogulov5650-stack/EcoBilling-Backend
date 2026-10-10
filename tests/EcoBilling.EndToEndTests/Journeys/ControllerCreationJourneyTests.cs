@@ -10,7 +10,6 @@ namespace EcoBilling.EndToEndTests.Journeys;
 
 public sealed class ControllerCreationJourneyTests
 {
-    private const string DirectorPassword = "Director-password-2026!";
     private const string ControllerInitialCredential =
         "controller-initial-credential-2026-01";
     private const string ControllerPassword = "Controller-password-2026!";
@@ -20,15 +19,10 @@ public sealed class ControllerCreationJourneyTests
     {
         await using var host = await EcoBillingEndToEndHost.CreateAsync();
         await ProvisionDirectorAsync(host);
-        await SetupPasswordAsync(
-            host.Client,
-            "director@example.com",
-            EcoBillingEndToEndHost.InitialCredential,
-            DirectorPassword);
         var directorTokens = await LoginAsync(
             host.Client,
             "director@example.com",
-            DirectorPassword);
+            EcoBillingEndToEndHost.InitialCredential);
 
         using var createRequest = CreateControllerRequest(
             directorTokens.AccessToken,

@@ -68,6 +68,16 @@ jobs:
       - name: Build container images
         run: docker compose --env-file deploy/.env.example --file deploy/compose.yml build api worker migrations postgres
 
+      - name: Verify migrations image CLI
+        run: >-
+          docker run --rm
+          -e ECOBILLING_DESIGN_TIME_CONNECTION="$ECOBILLING_TEST_POSTGRES_CONNECTION"
+          --entrypoint dotnet ecobilling-migrations:latest
+          tool run dotnet-ef -- migrations list --no-connect
+          --project src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj
+          --startup-project src/EcoBilling.Infrastructure/EcoBilling.Infrastructure.csproj
+          --configuration Release --no-build
+
       - name: Scan API image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

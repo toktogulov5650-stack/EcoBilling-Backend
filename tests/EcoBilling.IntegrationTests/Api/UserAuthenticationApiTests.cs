@@ -124,10 +124,10 @@ public sealed class UserAuthenticationApiTests
     }
 
     [PostgreSqlFact]
-    public async Task SetupPassword_ReplacesInitialCredentialBeforeFirstLogin()
+    public async Task SetupPassword_ControllerReplacesInitialCredentialBeforeFirstLogin()
     {
         await using var host = await UserAuthHost.CreateAsync(
-            UserRole.Director,
+            UserRole.Controller,
             requiresPasswordChange: true,
             InitialCredential);
 
@@ -156,6 +156,31 @@ public sealed class UserAuthenticationApiTests
         Assert.Equal(HttpStatusCode.NoContent, setup.StatusCode);
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, repeatedSetup.StatusCode);
+    }
+
+    [PostgreSqlFact]
+    public async Task SetupPassword_DirectorCannotChangeAdministratorIssuedPassword()
+    {
+        await using var host = await UserAuthHost.CreateAsync(
+            UserRole.Director,
+            requiresPasswordChange: false,
+            InitialCredential);
+
+        using var setup = await host.Client.PostAsJsonAsync(
+            "/api/v1/auth/setup-password",
+            new SetInitialPasswordRequest(
+                "email", "controller@example.com", InitialCredential, ReplacementPassword));
+        Assert.Equal(HttpStatusCode.Forbidden, setup.StatusCode);
+
+        using var login = await host.Client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequest("email", "controller@example.com", InitialCredential));
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        using var replacementLogin = await host.Client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new LoginRequest("email", "controller@example.com", ReplacementPassword));
+        Assert.Equal(HttpStatusCode.Unauthorized, replacementLogin.StatusCode);
     }
 
     private static async Task<TokenPairResponse> LoginAsync(HttpClient client)

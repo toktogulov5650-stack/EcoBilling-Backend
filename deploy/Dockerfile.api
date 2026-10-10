@@ -23,6 +23,9 @@ RUN dotnet publish src/EcoBilling.Api/EcoBilling.Api.csproj \
 FROM ${DOTNET_SDK_IMAGE} AS migrations
 WORKDIR /src
 COPY --from=build /src /src
+# Migrations run the prebuilt Infrastructure project, not the API OpenAPI generator.
+# Keep that build-only tool and its bundled dependencies out of the migration image.
+RUN rm -rf /src/.nuget/packages/microsoft.extensions.apidescription.server
 RUN chown -R $APP_UID:$APP_UID /src
 USER $APP_UID
 RUN dotnet tool restore

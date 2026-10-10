@@ -239,13 +239,6 @@ public sealed record CreateResidentRequest(
         $"{nameof(CreateResidentRequest)} {{ FullName = [REDACTED], AccountNumber = [REDACTED], Password = [REDACTED], Address = [REDACTED] }}";
 }
 
-public sealed record CreateResidentAddressRequest(
-    string? Locality,
-    string? Street,
-    string? House,
-    string? Building,
-    string? Apartment);
-
 public sealed record CreateResidentResponse(
     Guid ResidentId,
     Guid AccountId,

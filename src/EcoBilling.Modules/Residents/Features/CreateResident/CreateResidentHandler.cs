@@ -1,6 +1,5 @@
 using EcoBilling.Modules.Accounts.Domain;
 using EcoBilling.Modules.Identity.Application.Abstractions;
-using EcoBilling.Modules.Identity.Application.PasswordSetup;
 using EcoBilling.Modules.Identity.Domain;
 using EcoBilling.Modules.Residents.Domain;
 using EcoBilling.Modules.Residents.Features.Abstractions;
@@ -13,14 +12,12 @@ public sealed class CreateResidentHandler
     private readonly IResidentCreationRepository repository;
     private readonly IResidentCreationRequestFingerprinter requestFingerprinter;
     private readonly IPasswordHasher passwordHasher;
-    private readonly PasswordPolicy passwordPolicy;
     private readonly TimeProvider timeProvider;
 
     public CreateResidentHandler(
         IResidentCreationRepository repository,
         IResidentCreationRequestFingerprinter requestFingerprinter,
         IPasswordHasher passwordHasher,
-        PasswordPolicy passwordPolicy,
         TimeProvider timeProvider)
     {
         this.repository = repository
@@ -29,8 +26,6 @@ public sealed class CreateResidentHandler
             ?? throw new ArgumentNullException(nameof(requestFingerprinter));
         this.passwordHasher = passwordHasher
             ?? throw new ArgumentNullException(nameof(passwordHasher));
-        this.passwordPolicy = passwordPolicy
-            ?? throw new ArgumentNullException(nameof(passwordPolicy));
         this.timeProvider = timeProvider
             ?? throw new ArgumentNullException(nameof(timeProvider));
     }
@@ -51,7 +46,7 @@ public sealed class CreateResidentHandler
                 ResidentErrors.InvalidCreationIdempotencyKey);
         }
 
-        if (!passwordPolicy.IsValid(command.Password))
+        if (!ResidentPasswordPolicy.IsValid(command.Password))
         {
             return Result<CreateResidentResult>.Failure(
                 ResidentErrors.InvalidPassword);

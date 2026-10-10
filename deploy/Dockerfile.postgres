@@ -1,5 +1,5 @@
 ARG POSTGRES_IMAGE=postgres:17-alpine
-ARG GOLANG_IMAGE=golang:1.25.13-alpine
+ARG GOLANG_IMAGE=golang:1.26.9-alpine
 
 FROM ${GOLANG_IMAGE} AS gosu-build
 ENV CGO_ENABLED=0

@@ -10,7 +10,6 @@ namespace EcoBilling.EndToEndTests.Journeys;
 
 public sealed class ResidentCreationJourneyTests
 {
-    private const string DirectorPassword = "Director-password-2026!";
     private const string ResidentPassword = "Resident-password-2026!";
     private const string ReplacementResidentPassword =
         "Replacement-resident-password-2026!";
@@ -21,12 +20,11 @@ public sealed class ResidentCreationJourneyTests
     {
         await using var host = await EcoBillingEndToEndHost.CreateAsync();
         await ProvisionDirectorAsync(host);
-        await SetupDirectorPasswordAsync(host.Client);
         var directorTokens = await LoginAsync(
             host.Client,
             "email",
             "director@example.com",
-            DirectorPassword);
+            EcoBillingEndToEndHost.InitialCredential);
 
         using var createRequest = CreateResidentRequest(
             directorTokens.AccessToken,
@@ -189,18 +187,6 @@ public sealed class ResidentCreationJourneyTests
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
-    private static async Task SetupDirectorPasswordAsync(HttpClient client)
-    {
-        using var response = await client.PostAsJsonAsync(
-            "/api/v1/auth/setup-password",
-            new SetInitialPasswordRequest(
-                "email",
-                "director@example.com",
-                EcoBillingEndToEndHost.InitialCredential,
-                DirectorPassword));
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-    }
-
     private static async Task<TokenPairResponse> LoginAsync(
         HttpClient client,
         string loginType,
@@ -226,12 +212,7 @@ public sealed class ResidentCreationJourneyTests
                     "Ada Lovelace",
                     AccountNumber,
                     ResidentPassword,
-                    new CreateResidentAddressRequest(
-                        "Bishkek",
-                        "Chuy Avenue",
-                        "42",
-                        "2",
-                        "17")))
+                    "Bishkek, Chuy Avenue, 42"))
         };
         request.Headers.Authorization = new AuthenticationHeaderValue(
             "Bearer",
